@@ -1,0 +1,1498 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>YISSY EXPRESS - Sistema de Préstamos v2</title>
+<style>
+:root{
+  --navy:#06142e;--gold:#c99a24;--gold2:#f1c75b;--bg:#f4f6fb;
+  --green:#15803d;--red:#b91c1c;--text:#111827;--blue:#1d4ed8;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,var(--navy),#0b2148);color:white;padding:18px 14px;border-bottom:5px solid var(--gold)}
+.logo{font-size:30px;font-weight:900;letter-spacing:4px;color:var(--gold2)}
+.sub{font-size:13px;opacity:.95}
+.wrap{max-width:1200px;margin:auto;padding:14px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.card{background:white;border-radius:14px;padding:14px;box-shadow:0 2px 12px #0001;border:1px solid #e5e7eb;margin-bottom:12px}
+.metric{font-weight:800;font-size:22px;margin-top:6px}
+.green{color:var(--green)}.red{color:var(--red)}.gold{color:var(--gold)}.blue{color:var(--blue)}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.tab{border:0;border-radius:10px;padding:12px 14px;background:var(--navy);color:white;font-weight:700;cursor:pointer}
+.tab.active{background:var(--gold);color:#111}
+section{display:none}section.active{display:block}
+h2{color:var(--navy);margin:8px 0 12px}
+h3{color:var(--navy);margin:14px 0 6px}
+.row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+label{font-size:12px;font-weight:700;color:#374151;display:block}
+input,select,textarea{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:9px;margin:5px 0 10px;background:white;font-family:inherit;font-size:14px}
+button{cursor:pointer;font-family:inherit}
+.btn{background:var(--navy);color:white;border:0;border-radius:9px;padding:11px 14px;font-weight:800;font-size:13px}
+.btn.gold{background:var(--gold);color:#111}
+.btn.red{background:var(--red)}
+.btn.green{background:var(--green)}
+.btn.blue{background:var(--blue)}
+.btn.sm{padding:6px 10px;font-size:12px;border-radius:7px}
+table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;font-size:13px;margin-top:8px}
+th{background:var(--navy);color:white}
+td,th{padding:9px;border:1px solid #e5e7eb;text-align:left;vertical-align:middle}
+tbody tr:nth-child(even){background:#f9fafb}
+.status{font-weight:800;border-radius:999px;padding:4px 8px;display:inline-block}
+.Activo{background:#fef3c7;color:#92400e}
+.Pagado{background:#dcfce7;color:#166534}
+.Atrasado{background:#fee2e2;color:#991b1b}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;align-items:center}
+.note{font-size:12px;color:#6b7280}
+.warn{font-size:13px;color:#92400e;background:#fef3c7;padding:8px 10px;border-radius:8px;margin:8px 0}
+.receipt{border:1px solid #d1d5db;padding:22px;background:white;max-width:850px;margin:auto}
+.invoiceHead{display:flex;justify-content:space-between;gap:20px;border-bottom:4px solid var(--gold);padding-bottom:12px;margin-bottom:14px}
+.invoiceBrand{font-size:28px;font-weight:900;letter-spacing:3px;color:var(--navy)}
+.invoiceTitle{font-size:26px;font-weight:900;color:var(--gold);text-align:right}
+.invoiceBox{border:1px solid #e5e7eb;border-radius:10px;padding:10px;background:#f9fafb;margin:10px 0}
+.invoiceTable{width:100%;border-collapse:collapse;margin-top:12px}
+.invoiceTable th{background:var(--navy);color:white}
+.invoiceTable td,.invoiceTable th{padding:10px;border:1px solid #e5e7eb}
+.invoiceTotal{font-size:20px;font-weight:900;color:var(--navy);text-align:right}
+.invoiceFooter{display:flex;justify-content:space-between;margin-top:35px;gap:30px}
+.signature{border-top:1px solid #111;padding-top:8px;text-align:center;width:45%}
+.lock{position:fixed;inset:0;background:var(--navy);z-index:9;display:none;align-items:center;justify-content:center;padding:20px}
+.lock .box{background:white;max-width:380px;width:100%;border-radius:16px;padding:22px}
+.lock h2{margin:0 0 8px}
+.lock .btn{margin-top:8px;width:100%}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:20;display:none;align-items:center;justify-content:center;padding:20px}
+.modal .box{background:white;max-width:560px;width:100%;border-radius:16px;padding:22px;max-height:90vh;overflow:auto}
+.modal h2{margin-top:0}
+.badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;background:#e5e7eb;color:#374151}
+.badge.warn{background:#fef3c7;color:#92400e}
+.badge.ok{background:#dcfce7;color:#166534}
+.badge.err{background:#fee2e2;color:#991b1b}
+@media(max-width:800px){.grid,.row{grid-template-columns:1fr}.metric{font-size:20px}table{font-size:12px}.wrap{padding:10px}.invoiceHead{flex-direction:column}.invoiceFooter{flex-direction:column}}
+@media print{
+  nav,.tools,.noPrint,header,.tab,.modal{display:none!important}
+  body{background:white;margin:0;padding:0}
+  body.printTicket *{visibility:hidden}
+  body.printTicket #ticketBox,body.printTicket #ticketBox *{visibility:visible}
+  body.printTicket #ticketBox{position:absolute;left:0;top:0;width:72mm;padding:2mm;font-size:11px;font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff}
+  body.printTicket .ticketLine{border-top:1px dashed #000;margin:6px 0}
+  body.printTicket .ticketCenter{text-align:center}
+  body.printTicket .ticketBrand{font-size:16px;font-weight:900}
+  body.printTicket table{font-size:10px;width:100%;border-collapse:collapse}
+  body.printTicket th,body.printTicket td{border:0;padding:2px;text-align:left}
+  body.printTicket .ticketTotal{font-size:14px;font-weight:900;text-align:right}
+  body.printTicket .card{box-shadow:none;border:0}
+  .card{box-shadow:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ BLOQUEO POR PIN ============ -->
+<div id="lock" class="lock">
+  <div class="box">
+    <h2>YISSY EXPRESS</h2>
+    <p class="note" id="lockIntro">Protege el sistema con una clave local.</p>
+    <label>Clave</label>
+    <input id="pin" type="password" placeholder="Escribe tu clave">
+    <button class="btn gold" onclick="unlock()">Entrar</button>
+    <button class="btn" onclick="setPin()" id="setPinBtn">Crear/Cambiar clave</button>
+    <button class="btn red sm" onclick="forgotPin()" id="forgotBtn" style="display:none;margin-top:6px">Olvidé mi clave (borra datos)</button>
+    <p id="lockMsg" class="red"></p>
+  </div>
+</div>
+
+<!-- ============ MODAL GENÉRICO ============ -->
+<div id="modal" class="modal">
+  <div class="box">
+    <h2 id="modalTitle"></h2>
+    <div id="modalBody"></div>
+    <div class="tools" style="margin-top:14px">
+      <button class="btn gold" id="modalOk">Aceptar</button>
+      <button class="btn" id="modalCancel">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="wrap">
+    <div class="logo">YISSY EXPRESS</div>
+    <div class="sub">Sistema seguro de préstamos, cobros y copias de seguridad</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- Banner de advertencias globales -->
+<div id="globalWarnings"></div>
+
+<nav>
+  <button class="tab active" onclick="show('panel',this)">Panel</button>
+  <button class="tab" onclick="show('clientes',this)">Clientes</button>
+  <button class="tab" onclick="show('prestamos',this)">Préstamos</button>
+  <button class="tab" onclick="show('pagos',this)">Pagos</button>
+  <button class="tab" onclick="show('calendario',this)">Días de pago</button>
+  <button class="tab" onclick="show('recibo',this)">Recibo</button>
+  <button class="tab" onclick="show('reportes',this)">Reportes</button>
+  <button class="tab" onclick="show('backup',this)">Backup</button>
+</nav>
+
+<!-- ============ PANEL ============ -->
+<section id="panel" class="active">
+  <div class="grid">
+    <div class="card"><b>Total prestado</b><div id="mPrestado" class="metric green">RD$ 0.00</div></div>
+    <div class="card"><b>Total cobrado</b><div id="mCobrado" class="metric green">RD$ 0.00</div></div>
+    <div class="card"><b>Saldo por cobrar</b><div id="mSaldo" class="metric red">RD$ 0.00</div></div>
+    <div class="card"><b>Ganancia estimada</b><div id="mGanancia" class="metric gold">RD$ 0.00</div></div>
+  </div>
+  <div class="card">
+    <h2>Préstamos activos</h2>
+    <div class="tools">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="soloAtrasados" onchange="renderPanel()"> Mostrar solo atrasados
+      </label>
+      <input id="buscarPanel" placeholder="Buscar por cliente..." oninput="renderPanel()" style="max-width:280px;margin:0">
+    </div>
+    <div id="tablaPanel"></div>
+  </div>
+</section>
+
+<!-- ============ CLIENTES ============ -->
+<section id="clientes">
+  <div class="card">
+    <h2 id="clienteFormTitle">Registrar cliente</h2>
+    <div class="row">
+      <div><label>Nombre</label><input id="cNombre"></div>
+      <div><label>Cédula</label><input id="cCedula"></div>
+      <div><label>Teléfono</label><input id="cTelefono"></div>
+      <div><label>Dirección</label><input id="cDireccion"></div>
+    </div>
+    <input type="hidden" id="cIdEdit">
+    <div class="tools">
+      <button class="btn gold" onclick="saveCliente()">Guardar cliente</button>
+      <button class="btn" onclick="cancelEditCliente()" id="cancelEditClienteBtn" style="display:none">Cancelar edición</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Lista de clientes</h2>
+    <input id="buscarCliente" placeholder="Buscar por nombre o cédula" oninput="renderClientes()" style="max-width:400px">
+    <div id="tablaClientes"></div>
+  </div>
+</section>
+
+<!-- ============ PRÉSTAMOS ============ -->
+<section id="prestamos">
+  <div class="card">
+    <h2 id="prestamoFormTitle">Nuevo préstamo</h2>
+    <div class="row">
+      <div><label>Cliente</label><select id="pCliente"></select></div>
+      <div><label>Monto prestado</label><input id="pMonto" type="number" step="0.01"></div>
+      <div><label>Interés total %</label><input id="pInteres" type="number" step="0.01" value="20"></div>
+      <div><label>Cantidad de pagos</label><input id="pCuotas" type="number" value="15"></div>
+      <div><label>Tipo de pago</label><select id="pTipo" onchange="calcularPrimerPago()"><option>Semanal</option><option>Quincenal</option><option>Mensual</option></select></div>
+      <div><label>Fecha inicio</label><input id="pFecha" type="date" onchange="calcularPrimerPago()"></div>
+      <div><label>Fecha primer pago</label><input id="pPrimerPago" type="date"><div class="note">Se calcula automático, pero puedes modificarlo.</div></div>
+    </div>
+    <input type="hidden" id="pIdEdit">
+    <div class="tools">
+      <button class="btn gold" onclick="savePrestamo()">Guardar préstamo</button>
+      <button class="btn" onclick="cancelEditPrestamo()" id="cancelEditPrestamoBtn" style="display:none">Cancelar edición</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Registro de préstamos</h2>
+    <input id="buscarPrestamo" placeholder="Buscar por cliente..." oninput="renderPrestamos()" style="max-width:400px">
+    <div id="tablaPrestamos"></div>
+  </div>
+</section>
+
+<!-- ============ PAGOS ============ -->
+<section id="pagos">
+  <div class="card">
+    <h2>Registrar pago</h2>
+    <p class="note">Puedes registrar cualquier monto: RD$500, RD$5,000 o más. El sistema aplica el dinero automáticamente a las cuotas en orden, dejando abonos parciales o adelantando cuotas.</p>
+    <div class="row">
+      <div><label>Préstamo</label><select id="payPrestamo"></select></div>
+      <div><label>Fecha</label><input id="payFecha" type="date"></div>
+      <div><label>Monto pagado</label><input id="payMonto" type="number" step="0.01"></div>
+      <div><label>Nota</label><input id="payNota"></div>
+    </div>
+    <button class="btn green" onclick="addPago()">Guardar pago</button>
+  </div>
+  <div class="card">
+    <h2>Historial de pagos</h2>
+    <div class="tools">
+      <input id="buscarPago" placeholder="Buscar por cliente o nota..." oninput="renderPagos()" style="max-width:300px">
+      <label>Desde: <input type="date" id="filtroDesde" onchange="renderPagos()" style="display:inline-block;width:auto;margin:0"></label>
+      <label>Hasta: <input type="date" id="filtroHasta" onchange="renderPagos()" style="display:inline-block;width:auto;margin:0"></label>
+      <button class="btn sm" onclick="limpiarFiltrosPago()">Limpiar filtros</button>
+    </div>
+    <div id="tablaPagos"></div>
+  </div>
+</section>
+
+<!-- ============ CALENDARIO ============ -->
+<section id="calendario">
+  <div class="card">
+    <h2>Días de pago automáticos</h2>
+    <p class="note">El sistema calcula las fechas desde la fecha del primer pago según el tipo: semanal, quincenal o mensual.</p>
+    <div class="row">
+      <div><label>Selecciona préstamo</label><select id="calPrestamo" onchange="renderCalendario()"></select></div>
+    </div>
+    <div id="tablaCalendario"></div>
+  </div>
+</section>
+
+<!-- ============ RECIBO ============ -->
+<section id="recibo">
+  <div class="card receipt" id="reciboBox">
+    <div class="invoiceHead">
+      <div>
+        <div class="invoiceBrand">YISSY EXPRESS</div>
+        <div><b>Servicios de préstamos y cobros</b></div>
+        <div class="note">Documento de pago generado por el sistema</div>
+      </div>
+      <div>
+        <div class="invoiceTitle">FACTURA / RECIBO</div>
+        <div><b>No.:</b> <span id="rNumero"></span></div>
+        <div><b>Fecha:</b> <span id="rFecha"></span></div>
+      </div>
+    </div>
+    <div class="invoiceBox">
+      <h3>Datos del cliente</h3>
+      <div><b>Cliente:</b> <span id="rCliente"></span></div>
+      <div><b>Cédula:</b> <span id="rCedula"></span></div>
+      <div><b>Teléfono:</b> <span id="rTelefono"></span></div>
+      <div><b>Dirección:</b> <span id="rDireccion"></span></div>
+    </div>
+    <table class="invoiceTable">
+      <thead><tr><th>Descripción</th><th>Forma de pago</th><th>Monto pagado</th><th>Saldo pendiente</th></tr></thead>
+      <tbody><tr><td>Abono a préstamo</td><td><span id="rTipo"></span></td><td><span id="rMonto"></span></td><td><span id="rSaldo"></span></td></tr></tbody>
+    </table>
+    <div class="invoiceBox">
+      <div><b>Monto original del préstamo:</b> <span id="rPrestado"></span></div>
+      <div><b>Total a pagar:</b> <span id="rTotal"></span></div>
+      <div><b>Total pagado acumulado:</b> <span id="rPagado"></span></div>
+      <div class="invoiceTotal">Balance pendiente: <span id="rBalance"></span></div>
+    </div>
+    <div class="invoiceBox"><b>Nota:</b> <span id="rNota"></span></div>
+    <div class="invoiceFooter">
+      <div class="signature">Firma autorizada</div>
+      <div class="signature">Firma del cliente</div>
+    </div>
+  </div>
+
+  <div class="card receipt" id="ticketBox" style="display:none">
+    <div class="ticketCenter">
+      <div class="ticketBrand">YISSY EXPRESS</div>
+      <div>RECIBO DE PAGO</div>
+      <div>829-477-5163</div>
+    </div>
+    <div class="ticketLine"></div>
+    <div><b>No:</b> <span id="tNumero"></span></div>
+    <div><b>Fecha:</b> <span id="tFecha"></span></div>
+    <div><b>Cliente:</b> <span id="tCliente"></span></div>
+    <div><b>Cédula:</b> <span id="tCedula"></span></div>
+    <div class="ticketLine"></div>
+    <table>
+      <tr><td>Abono préstamo</td><td style="text-align:right"><span id="tMonto"></span></td></tr>
+      <tr><td>Total pagado</td><td style="text-align:right"><span id="tPagado"></span></td></tr>
+      <tr><td>Saldo pendiente</td><td style="text-align:right"><span id="tSaldo"></span></td></tr>
+      <tr><td>Próximo pago</td><td style="text-align:right"><span id="tProximo"></span></td></tr>
+    </table>
+    <div class="ticketLine"></div>
+    <div><b>Nota:</b> <span id="tNota"></span></div>
+    <br><br>
+    <div class="ticketCenter">_________________________<br>Firma</div>
+    <div class="ticketLine"></div>
+    <div class="ticketCenter">Gracias por su pago</div>
+  </div>
+
+  <div class="tools noPrint">
+    <button class="btn gold" onclick="imprimirFactura()">Imprimir factura normal</button>
+    <button class="btn green" onclick="imprimirTicket()">Imprimir recibo portátil</button>
+  </div>
+</section>
+
+<!-- ============ REPORTES ============ -->
+<section id="reportes">
+  <div class="card">
+    <h2>Reporte mensual</h2>
+    <div class="tools">
+      <label>Mes: <input type="month" id="repMes" onchange="renderReporte()" style="display:inline-block;width:auto;margin:0"></label>
+      <button class="btn sm" onclick="exportarReporteCSV()">Exportar CSV</button>
+    </div>
+    <div id="tablaReporte"></div>
+  </div>
+</section>
+
+<!-- ============ BACKUP ============ -->
+<section id="backup">
+  <div class="card">
+    <h2>Copia de seguridad</h2>
+    <p>Haz backup cada día o cada semana. Guarda el archivo en iCloud, Google Drive o WhatsApp contigo mismo.</p>
+    <div class="tools">
+      <button class="btn gold" onclick="exportBackup(false)">Descargar backup normal</button>
+      <button class="btn green" onclick="abrirBackupClave()">Descargar backup con clave</button>
+      <input type="file" id="importFile" accept=".json" onchange="importBackup(event)">
+    </div>
+    <p class="note">Para mayor seguridad, usa "backup con clave". Sin esa clave no se puede recuperar el archivo.</p>
+    <div id="backupStatus"></div>
+  </div>
+  <div class="card">
+    <h2>Seguridad</h2>
+    <div class="tools">
+      <button class="btn" onclick="showLockSetup()">Crear/Cambiar clave de entrada</button>
+      <button class="btn red" onclick="wipeData()">Borrar todos los datos</button>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   YISSY EXPRESS v2.0
+   Refactorización con:
+   - Cifrado AES-GCM de localStorage con PIN
+   - PBKDF2 para hash de PIN
+   - Anti-XSS (escapado HTML en todos los renders)
+   - Fix de zona horaria
+   - Base64 chunked para backups grandes
+   - Editar/Eliminar clientes, préstamos y pagos
+   - Búsqueda y filtros en todas las tablas
+   - Reportes mensuales + exportación CSV
+   - Número de recibo permanente
+   - Límite de intentos de PIN
+   - Modal genérico para entradas
+   ============================================================ */
+
+/* ---------- Constantes ---------- */
+const PBKDF2_ITER = 150000;
+const MAX_PIN_ATTEMPTS = 5;
+const LOCKOUT_MS = 5 * 60 * 1000; // 5 min
+const BACKUP_WARN_DAYS = 7;
+
+/* ---------- Estado ---------- */
+let db = {clientes:[], prestamos:[], pagos:[], lastReceipt:null, nextPagoNum:1};
+let pinAttempts = 0;
+let lockoutUntil = 0;
+let pendingBackupData = null; // para confirmar antes de restaurar
+let pendingWipeData = null;
+
+/* ---------- DOM cache ---------- */
+const $ = id => document.getElementById(id);
+const els = {};
+function cacheDOM(){
+  ['lock','lockMsg','lockIntro','setPinBtn','forgotBtn','pin',
+   'modal','modalTitle','modalBody','modalOk','modalCancel',
+   'globalWarnings',
+   'mPrestado','mCobrado','mSaldo','mGanancia',
+   'soloAtrasados','buscarPanel','tablaPanel',
+   'cNombre','cCedula','cTelefono','cDireccion','cIdEdit','clienteFormTitle','cancelEditClienteBtn',
+   'buscarCliente','tablaClientes',
+   'pCliente','pMonto','pInteres','pCuotas','pTipo','pFecha','pPrimerPago','pIdEdit','prestamoFormTitle','cancelEditPrestamoBtn',
+   'buscarPrestamo','tablaPrestamos',
+   'payPrestamo','payFecha','payMonto','payNota',
+   'buscarPago','filtroDesde','filtroHasta','tablaPagos',
+   'calPrestamo','tablaCalendario',
+   'reciboBox','ticketBox',
+   'rNumero','rFecha','rCliente','rCedula','rTelefono','rDireccion','rTipo','rMonto','rSaldo','rPrestado','rTotal','rPagado','rBalance','rNota',
+   'tNumero','tFecha','tCliente','tCedula','tMonto','tPagado','tSaldo','tProximo','tNota',
+   'repMes','tablaReporte',
+   'importFile','backupStatus'
+  ].forEach(id => els[id] = $(id));
+}
+
+/* ---------- Utilidades ---------- */
+const money = n => 'RD$ ' + Number(n||0).toLocaleString('es-DO',{minimumFractionDigits:2, maximumFractionDigits:2});
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+
+/** Escapa HTML para prevenir XSS */
+const esc = s => {
+  if(s===null||s===undefined) return '';
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+};
+
+/** Formatea fecha local (sin problemas de zona horaria) */
+function fmtLocal(d){
+  return d.getFullYear() + '-' +
+         String(d.getMonth()+1).padStart(2,'0') + '-' +
+         String(d.getDate()).padStart(2,'0');
+}
+function todayStr(){
+  return fmtLocal(new Date());
+}
+function addDays(dateStr, days){
+  let d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return fmtLocal(d);
+}
+function addMonths(dateStr, months){
+  let d = new Date(dateStr + 'T00:00:00');
+  let day = d.getDate();
+  d.setMonth(d.getMonth() + months);
+  // Si el día cambió (overflow de mes corto), retroceder al último día válido
+  if(d.getDate() < day){ d.setDate(0); }
+  return fmtLocal(d);
+}
+function daysBetween(a, b){
+  const da = new Date(a+'T00:00:00'), db = new Date(b+'T00:00:00');
+  return Math.round((db - da) / 86400000);
+}
+
+/* ---------- Crypto helpers ---------- */
+async function pbkdf2Key(pass, salt, usage){
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    {name:'PBKDF2', salt, iterations:PBKDF2_ITER, hash:'SHA-256'},
+    keyMaterial,
+    {name:'AES-GCM', length:256},
+    false,
+    usage
+  );
+}
+async function pbkdf2Hash(pass, salt){
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    {name:'PBKDF2', salt, iterations:PBKDF2_ITER, hash:'SHA-256'},
+    keyMaterial, 256
+  );
+  return [...new Uint8Array(bits)].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+function bufToB64(buf){
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunk = 0x8000;
+  for(let i=0; i<bytes.length; i+=chunk){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+  }
+  return btoa(binary);
+}
+function b64ToBuf(b64){
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+function randomBytes(n){
+  return crypto.getRandomValues(new Uint8Array(n));
+}
+
+/* ============================================================
+   PIN / CIFRADO DE LOCALSTORAGE
+   ============================================================ */
+async function getPinStore(){
+  try{
+    return JSON.parse(localStorage.yissyPin || 'null');
+  }catch(e){ return null; }
+}
+
+function isPinSet(){
+  return !!localStorage.yissyPin;
+}
+
+async function setPin(){
+  const newPin = els.pin.value;
+  if(newPin.length < 4){
+    els.lockMsg.textContent = 'Usa mínimo 4 números/letras';
+    return;
+  }
+  // Si ya hay datos cifrados con un PIN anterior, no podemos cambiar el PIN
+  // sin descifrar primero. Por simplicidad, advertimos.
+  if(localStorage.yissyDataEnc){
+    if(!confirm('Cambiar la clave requiere que recuerdes la anterior. Si la olvidas, perderás los datos. ¿Continuar?')){
+      return;
+    }
+    // El cambio real de clave sobre datos existentes requeriría descifrar y recifrar.
+    // Lo implementamos:
+    try{
+      const currentPin = prompt('Introduce tu clave ACTUAL para verificar:');
+      if(!currentPin) return;
+      const store = await getPinStore();
+      const hash = await pbkdf2Hash(currentPin, new Uint8Array(store.salt));
+      if(hash !== store.hash){
+        els.lockMsg.textContent = 'Clave actual incorrecta.';
+        return;
+      }
+      // Descifrar datos actuales
+      const encObj = JSON.parse(localStorage.yissyDataEnc);
+      const key = await pbkdf2Key(currentPin, new Uint8Array(encObj.salt), ['decrypt']);
+      const dec = await crypto.subtle.decrypt(
+        {name:'AES-GCM', iv:new Uint8Array(encObj.iv)},
+        key, b64ToBuf(encObj.ct)
+      );
+      const plainDb = new TextDecoder().decode(dec);
+      // Recifrar con nuevo PIN
+      await persistEncrypted(newPin, plainDb);
+    }catch(e){
+      els.lockMsg.textContent = 'Error al cambiar la clave: ' + e.message;
+      return;
+    }
+  }
+  // Generar nueva sal y guardar hash
+  const salt = randomBytes(16);
+  const hash = await pbkdf2Hash(newPin, salt);
+  localStorage.yissyPin = JSON.stringify({salt:[...salt], hash});
+  // Si hay datos en claro, migrarlos a cifrado
+  if(localStorage.yissyData && !localStorage.yissyDataEnc){
+    await persistEncrypted(newPin, localStorage.yissyData);
+    localStorage.removeItem('yissyData');
+  }
+  els.lockMsg.textContent = 'Clave guardada correctamente.';
+  els.pin.value = '';
+  // Si estábamos en modo "crear clave", ahora entramos
+  if(els.lock.style.display === 'flex' && !localStorage.yissyDataEnc){
+    // No hay datos, permitir entrar
+    els.lock.style.display = 'none';
+    initAfterUnlock();
+  }
+}
+
+async function persistEncrypted(pin, plainData){
+  const salt = randomBytes(16);
+  const iv = randomBytes(12);
+  const key = await pbkdf2Key(pin, salt, ['encrypt']);
+  const ct = await crypto.subtle.encrypt(
+    {name:'AES-GCM', iv},
+    key, new TextEncoder().encode(plainData)
+  );
+  localStorage.yissyDataEnc = JSON.stringify({
+    salt:[...salt],
+    iv:[...iv],
+    ct:bufToB64(ct),
+    v:1
+  });
+}
+
+async function tryUnlock(){
+  const pin = els.pin.value;
+  const store = await getPinStore();
+  if(!store){
+    // No hay PIN configurado
+    els.lock.style.display = 'none';
+    initAfterUnlock();
+    return;
+  }
+  // Bloqueo temporal por intentos
+  if(Date.now() < lockoutUntil){
+    const mins = Math.ceil((lockoutUntil - Date.now())/60000);
+    els.lockMsg.textContent = `Demasiados intentos. Espera ${mins} min.`;
+    return;
+  }
+  const hash = await pbkdf2Hash(pin, new Uint8Array(store.salt));
+  if(hash === store.hash){
+    pinAttempts = 0;
+    // Descifrar datos
+    if(localStorage.yissyDataEnc){
+      try{
+        const encObj = JSON.parse(localStorage.yissyDataEnc);
+        const key = await pbkdf2Key(pin, new Uint8Array(encObj.salt), ['decrypt']);
+        const dec = await crypto.subtle.decrypt(
+          {name:'AES-GCM', iv:new Uint8Array(encObj.iv)},
+          key, b64ToBuf(encObj.ct)
+        );
+        db = JSON.parse(new TextDecoder().decode(dec));
+        // Migración: asegurar nextPagoNum
+        if(!db.nextPagoNum){
+          db.nextPagoNum = (db.pagos?.length || 0) + 1;
+        }
+      }catch(e){
+        els.lockMsg.textContent = 'Error al descifrar los datos. ¿Clave correcta?';
+        return;
+      }
+    }
+    // Guardar PIN en sesión para futuros save()
+    sessionStorage.yissySessionPin = pin;
+    els.lock.style.display = 'none';
+    initAfterUnlock();
+  }else{
+    pinAttempts++;
+    const restantes = MAX_PIN_ATTEMPTS - pinAttempts;
+    if(restantes > 0){
+      els.lockMsg.textContent = `Clave incorrecta. Intentos restantes: ${restantes}`;
+    }else{
+      lockoutUntil = Date.now() + LOCKOUT_MS;
+      pinAttempts = 0;
+      els.lockMsg.textContent = `Demasiados intentos. Bloqueado por 5 minutos.`;
+    }
+    els.pin.value = '';
+    els.pin.focus();
+  }
+}
+
+function unlock(){
+  tryUnlock();
+}
+
+function forgotPin(){
+  if(confirm('¿Olvidaste tu clave? Esto BORRARÁ todos los datos permanentemente. ¿Continuar?')){
+    if(confirm('Última confirmación: se borrarán TODOS los clientes, préstamos y pagos. ¿Estás seguro?')){
+      localStorage.removeItem('yissyData');
+      localStorage.removeItem('yissyDataEnc');
+      localStorage.removeItem('yissyPin');
+      localStorage.removeItem('yissyAutoBackup');
+      sessionStorage.clear();
+      db = {clientes:[], prestamos:[], pagos:[], lastReceipt:null, nextPagoNum:1};
+      els.lock.style.display = 'none';
+      location.reload();
+    }
+  }
+}
+
+function showLockSetup(){
+  els.lock.style.display = 'flex';
+  els.lockIntro.textContent = 'Configura una clave para proteger tus datos. Sin esta clave no se podrán ver los datos.';
+  els.setPinBtn.style.display = 'inline-block';
+  els.forgotBtn.style.display = isPinSet() ? 'inline-block' : 'none';
+}
+
+/* Enter en PIN */
+function setupPinEnter(){
+  els.pin.addEventListener('keydown', e => {
+    if(e.key === 'Enter') tryUnlock();
+  });
+}
+
+/* ============================================================
+   PERSISTENCIA
+   ============================================================ */
+async function save(){
+  // Cifrar si hay PIN configurado
+  const pin = sessionStorage.yissySessionPin;
+  if(pin && localStorage.yissyPin){
+    try{
+      await persistEncrypted(pin, JSON.stringify(db));
+    }catch(e){
+      console.error('Error al cifrar guardando:', e);
+      alert('Error al guardar de forma cifrada: ' + e.message);
+      return;
+    }
+  }else{
+    // Sin PIN: texto plano (solo mientras no haya PIN configurado)
+    localStorage.yissyData = JSON.stringify(db);
+  }
+  localStorage.yissyLastBackup = new Date().toISOString();
+  render();
+}
+
+function initAfterUnlock(){
+  // Si NO hay PIN configurado, cargar de texto plano (compatibilidad)
+  if(!localStorage.yissyPin && localStorage.yissyData){
+    try{
+      db = JSON.parse(localStorage.yissyData);
+      if(!db.nextPagoNum) db.nextPagoNum = (db.pagos?.length || 0) + 1;
+    }catch(e){ console.error('Error al cargar datos:', e); }
+  }
+  // Inicializar campos de fecha
+  if(!els.pFecha.value) els.pFecha.value = todayStr();
+  if(!els.payFecha.value) els.payFecha.value = todayStr();
+  if(!els.repMes.value) els.repMes.value = todayStr().slice(0,7);
+  setTimeout(calcularPrimerPago, 0);
+  render();
+  showGlobalWarnings();
+}
+
+/* ============================================================
+   NAVEGACIÓN
+   ============================================================ */
+function show(id, btn){
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+/* ============================================================
+   CLIENTES
+   ============================================================ */
+function saveCliente(){
+  const idEdit = els.cIdEdit.value;
+  const nombre = els.cNombre.value.trim();
+  if(!nombre){ alert('Falta el nombre'); return; }
+  const data = {
+    nombre,
+    cedula: els.cCedula.value.trim(),
+    telefono: els.cTelefono.value.trim(),
+    direccion: els.cDireccion.value.trim()
+  };
+  if(idEdit){
+    const c = db.clientes.find(x => x.id === idEdit);
+    if(c){ Object.assign(c, data); }
+  }else{
+    db.clientes.push({id:uid(), ...data});
+  }
+  cancelEditCliente();
+  save();
+}
+
+function editCliente(id){
+  const c = db.clientes.find(x => x.id === id);
+  if(!c) return;
+  els.cIdEdit.value = c.id;
+  els.cNombre.value = c.nombre || '';
+  els.cCedula.value = c.cedula || '';
+  els.cTelefono.value = c.telefono || '';
+  els.cDireccion.value = c.direccion || '';
+  els.clienteFormTitle.textContent = 'Editar cliente';
+  els.cancelEditClienteBtn.style.display = 'inline-block';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function cancelEditCliente(){
+  els.cIdEdit.value = '';
+  els.cNombre.value = els.cCedula.value = els.cTelefono.value = els.cDireccion.value = '';
+  els.clienteFormTitle.textContent = 'Registrar cliente';
+  els.cancelEditClienteBtn.style.display = 'none';
+}
+
+function eliminarCliente(id){
+  const tienePrestamos = db.prestamos.some(p => p.clienteId === id);
+  if(tienePrestamos){
+    alert('No puedes eliminar este cliente porque tiene préstamos registrados. Primero elimina sus préstamos.');
+    return;
+  }
+  if(confirm('¿Eliminar este cliente? Esta acción no se puede deshacer.')){
+    db.clientes = db.clientes.filter(c => c.id !== id);
+    save();
+  }
+}
+
+/* ============================================================
+   PRÉSTAMOS
+   ============================================================ */
+function calcularPrimerPago(){
+  const inicio = els.pFecha.value;
+  if(!inicio) return;
+  const tipo = els.pTipo.value;
+  if(tipo === 'Mensual'){
+    els.pPrimerPago.value = addMonths(inicio, 1);
+  }else if(tipo === 'Quincenal'){
+    els.pPrimerPago.value = addDays(inicio, 15);
+  }else{
+    els.pPrimerPago.value = addDays(inicio, 7);
+  }
+}
+
+function savePrestamo(){
+  const idEdit = els.pIdEdit.value;
+  const monto = Number(els.pMonto.value);
+  const interes = Number(els.pInteres.value);
+  const cuotas = Number(els.pCuotas.value);
+
+  if(!els.pCliente.value){ alert('Selecciona un cliente.'); return; }
+  if(els.pMonto.value.trim()==='' || !Number.isFinite(monto) || monto<=0){
+    alert('El monto debe ser un número mayor que cero.');
+    els.pMonto.focus();
+    return;
+  }
+  if(els.pInteres.value.trim()==='' || !Number.isFinite(interes) || interes<0){
+    alert('El interés debe ser un número igual o mayor que cero.');
+    els.pInteres.focus();
+    return;
+  }
+  if(els.pCuotas.value.trim()==='' || !Number.isFinite(cuotas) || cuotas<1 || !Number.isInteger(cuotas)){
+    alert('La cantidad de cuotas debe ser un número entero mayor que cero.');
+    els.pCuotas.focus();
+    return;
+  }
+  if(!els.pFecha.value){ alert('Falta la fecha de inicio.'); return; }
+  if(!els.pPrimerPago.value){ alert('Falta la fecha del primer pago.'); return; }
+
+  const data = {
+    clienteId: els.pCliente.value,
+    monto, interes, cuotas,
+    tipo: els.pTipo.value,
+    fecha: els.pFecha.value,
+    primerPago: els.pPrimerPago.value
+  };
+
+  if(idEdit){
+    const p = db.prestamos.find(x => x.id === idEdit);
+    if(p) Object.assign(p, data);
+  }else{
+    db.prestamos.push({id:uid(), ...data});
+  }
+  cancelEditPrestamo();
+  save();
+}
+
+function editPrestamo(id){
+  const p = db.prestamos.find(x => x.id === id);
+  if(!p) return;
+  els.pIdEdit.value = p.id;
+  els.pCliente.value = p.clienteId;
+  els.pMonto.value = p.monto;
+  els.pInteres.value = p.interes;
+  els.pCuotas.value = p.cuotas;
+  els.pTipo.value = p.tipo;
+  els.pFecha.value = p.fecha;
+  els.pPrimerPago.value = p.primerPago;
+  els.prestamoFormTitle.textContent = 'Editar préstamo';
+  els.cancelEditPrestamoBtn.style.display = 'inline-block';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function cancelEditPrestamo(){
+  els.pIdEdit.value = '';
+  els.pMonto.value = '';
+  els.prestamoFormTitle.textContent = 'Nuevo préstamo';
+  els.cancelEditPrestamoBtn.style.display = 'none';
+  calcularPrimerPago();
+}
+
+function eliminarPrestamo(id){
+  const p = db.prestamos.find(x => x.id === id);
+  if(!p) return;
+  const tienePagos = db.pagos.some(x => x.prestamoId === id);
+  let msg = '¿Eliminar este préstamo?';
+  if(tienePagos){
+    msg += `\n\nEste préstamo tiene pagos registrados (${db.pagos.filter(x=>x.prestamoId===id).length}). Si lo eliminas, también se borrarán esos pagos y los recibos asociados.`;
+  }
+  msg += '\n\nEsta acción no se puede deshacer.';
+  if(confirm(msg)){
+    db.prestamos = db.prestamos.filter(x => x.id !== id);
+    db.pagos = db.pagos.filter(x => x.prestamoId !== id);
+    if(db.lastReceipt && !db.pagos.find(x => x.id === db.lastReceipt)){
+      db.lastReceipt = null;
+    }
+    save();
+  }
+}
+
+/* ============================================================
+   PAGOS
+   ============================================================ */
+function addPago(){
+  const monto = Number(els.payMonto.value);
+  if(!els.payPrestamo.value){ alert('Selecciona un préstamo.'); return; }
+  if(els.payMonto.value.trim()==='' || !Number.isFinite(monto) || monto<=0){
+    alert('El monto debe ser un número mayor que cero.');
+    els.payMonto.focus();
+    return;
+  }
+  const pago = {
+    id: uid(),
+    numero: db.nextPagoNum || (db.pagos.length + 1),
+    prestamoId: els.payPrestamo.value,
+    fecha: els.payFecha.value || todayStr(),
+    monto,
+    nota: els.payNota.value.trim()
+  };
+  db.pagos.push(pago);
+  db.nextPagoNum = (db.nextPagoNum || db.pagos.length) + 1;
+  db.lastReceipt = pago.id;
+  els.payMonto.value = '';
+  els.payNota.value = '';
+  save();
+  // Saltar a la pestaña recibo para mostrar el comprobante
+  const reciboTab = [...document.querySelectorAll('.tab')].find(b => b.textContent.trim() === 'Recibo');
+  if(reciboTab) show('recibo', reciboTab);
+}
+
+function eliminarPago(id){
+  const pago = db.pagos.find(x => x.id === id);
+  if(!pago) return;
+  if(confirm('¿Eliminar este pago? Esta acción no se puede deshacer. El recibo asociado dejará de existir.')){
+    db.pagos = db.pagos.filter(x => x.id !== id);
+    if(db.lastReceipt === id) db.lastReceipt = null;
+    save();
+  }
+}
+
+function limpiarFiltrosPago(){
+  els.buscarPago.value = '';
+  els.filtroDesde.value = '';
+  els.filtroHasta.value = '';
+  renderPagos();
+}
+
+/* ============================================================
+   CÁLCULOS
+   ============================================================ */
+function clienteName(id){
+  return (db.clientes.find(c => c.id === id) || {}).nombre || 'Sin cliente';
+}
+function totalPagar(p){ return p.monto + (p.monto * p.interes / 100); }
+function pagado(pid){ return db.pagos.filter(x => x.prestamoId === pid).reduce((a,b) => a + Number(b.monto||0), 0); }
+function saldo(p){ return Math.max(totalPagar(p) - pagado(p.id), 0); }
+function estado(p){
+  if(saldo(p) <= 0.01) return 'Pagado';
+  const hoy = todayStr();
+  const prox = proximoPagoInfo(p);
+  if(prox.fecha && prox.fecha < hoy) return 'Atrasado';
+  return 'Activo';
+}
+function nextPayDate(p, n){
+  const start = p.primerPago || p.fecha || todayStr();
+  if(p.tipo === 'Semanal') return addDays(start, 7*(n-1));
+  if(p.tipo === 'Quincenal') return addDays(start, 15*(n-1));
+  return addMonths(start, n-1);
+}
+function paymentScheduleStatus(p){
+  const cuota = totalPagar(p) / p.cuotas;
+  const totalPaid = pagado(p.id);
+  const rows = [];
+  for(let i=1; i<=p.cuotas; i++){
+    const debeHastaCuota = cuota*i;
+    const pagadoACuota = Math.max(0, Math.min(cuota, totalPaid - cuota*(i-1)));
+    const pendiente = Math.max(cuota - pagadoACuota, 0);
+    let estadoTxt = 'Pendiente', estadoClass = 'Activo';
+    if(pendiente <= 0.01){ estadoTxt = 'Pagado'; estadoClass = 'Pagado'; }
+    else if(pagadoACuota > 0){ estadoTxt = 'Abono parcial'; estadoClass = 'Activo'; }
+    rows.push({n:i, fecha:nextPayDate(p,i), cuota, pagado:pagadoACuota, pendiente, estadoTxt, estadoClass});
+  }
+  return rows;
+}
+function proximoPagoInfo(p){
+  const rows = paymentScheduleStatus(p);
+  const next = rows.find(r => r.pendiente > 0.01);
+  if(!next) return {texto:'Préstamo pagado', monto:0, fecha:''};
+  return {texto:`Cuota ${next.n} - ${next.fecha}`, monto:next.pendiente, fecha:next.fecha};
+}
+
+/* ============================================================
+   RENDERIZADO (con escape HTML)
+   ============================================================ */
+function table(headers, rows){
+  return '<table><thead><tr>' + headers.map(h => '<th>' + esc(h) + '</th>').join('') +
+         '</tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+}
+
+function renderClientes(){
+  const filtro = (els.buscarCliente?.value || '').toLowerCase();
+  const fil = db.clientes.filter(c =>
+    (c.nombre||'').toLowerCase().includes(filtro) ||
+    (c.cedula||'').toLowerCase().includes(filtro)
+  );
+  const rows = fil.map(c => `<tr>
+    <td>${esc(c.nombre)}</td>
+    <td>${esc(c.cedula||'')}</td>
+    <td>${esc(c.telefono||'')}</td>
+    <td>${esc(c.direccion||'')}</td>
+    <td>
+      <button class="btn sm" onclick="editCliente('${c.id}')">✏ Editar</button>
+      <button class="btn red sm" onclick="eliminarCliente('${c.id}')">🗑 Eliminar</button>
+    </td>
+  </tr>`);
+  els.tablaClientes.innerHTML = fil.length
+    ? table(['Nombre','Cédula','Teléfono','Dirección','Acciones'], rows)
+    : '<p class="note">No hay clientes registrados.</p>';
+}
+
+function renderPrestamos(){
+  const filtro = (els.buscarPrestamo?.value || '').toLowerCase();
+  const fil = db.prestamos.filter(p =>
+    clienteName(p.clienteId).toLowerCase().includes(filtro)
+  );
+  const rows = fil.map(p => {
+    const nx = proximoPagoInfo(p);
+    return `<tr>
+      <td>${esc(p.fecha||'')}</td>
+      <td>${esc(clienteName(p.clienteId))}</td>
+      <td>${money(p.monto)}</td>
+      <td>${p.interes}%</td>
+      <td>${esc(p.tipo)}</td>
+      <td>${p.cuotas}</td>
+      <td>${money(totalPagar(p)/p.cuotas)}</td>
+      <td>${money(totalPagar(p))}</td>
+      <td>${money(pagado(p.id))}</td>
+      <td>${money(saldo(p))}</td>
+      <td>${nx.fecha ? esc(nx.fecha)+' - '+money(nx.monto) : 'Pagado'}</td>
+      <td><span class="status ${estado(p)}">${estado(p)}</span></td>
+      <td>
+        <button class="btn sm" onclick="editPrestamo('${p.id}')">✏</button>
+        <button class="btn red sm" onclick="eliminarPrestamo('${p.id}')">🗑</button>
+      </td>
+    </tr>`;
+  });
+  els.tablaPrestamos.innerHTML = fil.length
+    ? table(['Fecha','Cliente','Monto','Interés','Tipo','Pagos','Cuota','Total','Pagado','Saldo','Próximo pago','Estado','Acciones'], rows)
+    : '<p class="note">No hay préstamos registrados.</p>';
+}
+
+function renderPagos(){
+  const filtro = (els.buscarPago?.value || '').toLowerCase();
+  const desde = els.filtroDesde?.value;
+  const hasta = els.filtroHasta?.value;
+  const fil = db.pagos.filter(x => {
+    const p = db.prestamos.find(pp => pp.id === x.prestamoId) || {};
+    const cliente = clienteName(p.clienteId);
+    const matchTxt = cliente.toLowerCase().includes(filtro) || (x.nota||'').toLowerCase().includes(filtro);
+    const matchDesde = !desde || x.fecha >= desde;
+    const matchHasta = !hasta || x.fecha <= hasta;
+    return matchTxt && matchDesde && matchHasta;
+  });
+  const rows = fil.slice().reverse().map(x => {
+    const p = db.prestamos.find(pp => pp.id === x.prestamoId) || {};
+    return `<tr>
+      <td>${esc(x.fecha)}</td>
+      <td>${esc(clienteName(p.clienteId))}</td>
+      <td>${money(x.monto)}</td>
+      <td>${esc(x.nota||'')}</td>
+      <td>
+        <button class="btn gold sm" onclick="verRecibo('${x.id}')">📄 Ver</button>
+        <button class="btn red sm" onclick="eliminarPago('${x.id}')">🗑</button>
+      </td>
+    </tr>`;
+  });
+  els.tablaPagos.innerHTML = fil.length
+    ? table(['Fecha','Cliente','Monto','Nota','Acciones'], rows)
+    : '<p class="note">No hay pagos registrados con los filtros actuales.</p>';
+}
+
+function renderPanel(){
+  const soloAtr = els.soloAtrasados?.checked;
+  const filtro = (els.buscarPanel?.value || '').toLowerCase();
+  const panel = db.prestamos.filter(p => {
+    if(soloAtr && estado(p) !== 'Atrasado') return false;
+    if(filtro && !clienteName(p.clienteId).toLowerCase().includes(filtro)) return false;
+    return true;
+  });
+  const rows = panel.map(p => `<tr>
+    <td>${esc(clienteName(p.clienteId))}</td>
+    <td>${money(p.monto)}</td>
+    <td>${money(pagado(p.id))}</td>
+    <td>${money(saldo(p))}</td>
+    <td><span class="status ${estado(p)}">${estado(p)}</span></td>
+  </tr>`);
+  els.tablaPanel.innerHTML = panel.length
+    ? table(['Cliente','Monto','Pagado','Saldo','Estado'], rows)
+    : '<p class="note">No hay préstamos que coincidan.</p>';
+}
+
+function renderCalendario(){
+  const id = els.calPrestamo?.value || (db.prestamos[0]||{}).id;
+  const p = db.prestamos.find(x => x.id === id);
+  if(!p){ els.tablaCalendario.innerHTML = '<p class="note">No hay préstamos registrados.</p>'; return; }
+  const rows = paymentScheduleStatus(p).map(r => `<tr>
+    <td>${r.n}</td>
+    <td>${esc(r.fecha)}</td>
+    <td>${money(r.cuota)}</td>
+    <td>${money(r.pagado)}</td>
+    <td>${money(r.pendiente)}</td>
+    <td><span class="status ${r.estadoClass}">${esc(r.estadoTxt)}</span></td>
+  </tr>`);
+  const info = proximoPagoInfo(p);
+  els.tablaCalendario.innerHTML =
+    '<p><b>Próximo monto a pagar:</b> ' + money(info.monto) +
+    ' <b>Fecha:</b> ' + esc(info.fecha||'') + '</p>' +
+    table(['Nº cuota','Fecha de pago','Valor cuota','Pagado aplicado','Pendiente','Estado'], rows);
+}
+
+function renderReporte(){
+  const mes = els.repMes?.value || todayStr().slice(0,7);
+  const [yy, mm] = mes.split('-').map(Number);
+  const pagosMes = db.pagos.filter(x => x.fecha && x.fecha.startsWith(mes));
+  const totalCobrado = pagosMes.reduce((a,x) => a + Number(x.monto||0), 0);
+  const prestamosMes = db.prestamos.filter(p => p.fecha && p.fecha.startsWith(mes));
+  const totalPrestado = prestamosMes.reduce((a,p) => a + p.monto, 0);
+  const ganancia = prestamosMes.reduce((a,p) => a + (p.monto*p.interes/100), 0);
+
+  let html = `
+    <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+      <div class="card"><b>Cobrado en ${esc(mes)}</b><div class="metric green">${money(totalCobrado)}</div></div>
+      <div class="card"><b>Prestado en ${esc(mes)}</b><div class="metric red">${money(totalPrestado)}</div></div>
+      <div class="card"><b>Ganancia estimada</b><div class="metric gold">${money(ganancia)}</div></div>
+    </div>
+    <h3>Detalle de cobros (${pagosMes.length})</h3>`;
+  if(pagosMes.length){
+    const rows = pagosMes.map(x => {
+      const p = db.prestamos.find(pp => pp.id === x.prestamoId) || {};
+      return `<tr>
+        <td>${esc(x.fecha)}</td>
+        <td>${esc(clienteName(p.clienteId))}</td>
+        <td>${money(x.monto)}</td>
+        <td>${esc(x.nota||'')}</td>
+      </tr>`;
+    });
+    html += table(['Fecha','Cliente','Monto','Nota'], rows);
+  }else{
+    html += '<p class="note">No hay cobros en este mes.</p>';
+  }
+  html += `<h3>Préstamos nuevos (${prestamosMes.length})</h3>`;
+  if(prestamosMes.length){
+    const rows = prestamosMes.map(p => `<tr>
+      <td>${esc(p.fecha)}</td>
+      <td>${esc(clienteName(p.clienteId))}</td>
+      <td>${money(p.monto)}</td>
+      <td>${p.interes}%</td>
+      <td>${esc(p.tipo)}</td>
+      <td>${p.cuotas}</td>
+    </tr>`);
+    html += table(['Fecha','Cliente','Monto','Interés','Tipo','Cuotas'], rows);
+  }else{
+    html += '<p class="note">No hay préstamos nuevos en este mes.</p>';
+  }
+  els.tablaReporte.innerHTML = html;
+}
+
+function verRecibo(pagoId){
+  db.lastReceipt = pagoId;
+  // No llamamos save() para no re-cifrar en cada click; guardamos en sesión
+  const pin = sessionStorage.yissySessionPin;
+  if(pin && localStorage.yissyPin){
+    persistEncrypted(pin, JSON.stringify(db));
+  }
+  renderRecibo();
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  $('recibo').classList.add('active');
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  const tabs = [...document.querySelectorAll('.tab')];
+  const reciboTab = tabs.find(b => b.textContent.trim() === 'Recibo');
+  if(reciboTab) reciboTab.classList.add('active');
+}
+
+function renderRecibo(){
+  const lr = db.pagos.find(x => x.id === db.lastReceipt);
+  if(!lr){
+    els.rNumero.textContent = '—';
+    ['rFecha','rCliente','rCedula','rTelefono','rDireccion','rTipo','rMonto','rSaldo','rPrestado','rTotal','rPagado','rBalance','rNota',
+     'tNumero','tFecha','tCliente','tCedula','tMonto','tPagado','tSaldo','tProximo','tNota'].forEach(id => { if(els[id]) els[id].textContent=''; });
+    return;
+  }
+  const lp = db.prestamos.find(p => p.id === lr.prestamoId) || {};
+  const cl = db.clientes.find(c => c.id === lp.clienteId) || {};
+  const numRecibo = lr.numero || (db.pagos.findIndex(x => x.id === lr.id) + 1);
+
+  els.rNumero.textContent = 'YX-' + String(numRecibo).padStart(5, '0');
+  els.rFecha.textContent = lr.fecha;
+  els.rCliente.textContent = cl.nombre || '';
+  els.rCedula.textContent = cl.cedula || '';
+  els.rTelefono.textContent = cl.telefono || '';
+  els.rDireccion.textContent = cl.direccion || '';
+  els.rTipo.textContent = lp.tipo || '';
+  els.rMonto.textContent = money(lr.monto);
+  els.rSaldo.textContent = money(saldo(lp));
+  els.rPrestado.textContent = money(lp.monto || 0);
+  els.rTotal.textContent = money(totalPagar(lp));
+  els.rPagado.textContent = money(pagado(lp.id));
+  els.rBalance.textContent = money(saldo(lp));
+  els.rNota.textContent = lr.nota || '';
+
+  const nx = proximoPagoInfo(lp);
+  els.tNumero.textContent = els.rNumero.textContent;
+  els.tFecha.textContent = els.rFecha.textContent;
+  els.tCliente.textContent = els.rCliente.textContent;
+  els.tCedula.textContent = els.rCedula.textContent;
+  els.tMonto.textContent = els.rMonto.textContent;
+  els.tPagado.textContent = els.rPagado.textContent;
+  els.tSaldo.textContent = els.rBalance.textContent;
+  els.tProximo.textContent = nx.fecha ? nx.fecha + ' ' + money(nx.monto) : 'Pagado';
+  els.tNota.textContent = els.rNota.textContent;
+}
+
+function renderMetrics(){
+  const totalPrestado = db.prestamos.reduce((a,p) => a + p.monto, 0);
+  const totalCobrado = db.pagos.reduce((a,p) => a + Number(p.monto||0), 0);
+  const totalCobrar = db.prestamos.reduce((a,p) => a + saldo(p), 0);
+  const gan = db.prestamos.reduce((a,p) => a + (p.monto*p.interes/100), 0);
+  els.mPrestado.textContent = money(totalPrestado);
+  els.mCobrado.textContent = money(totalCobrado);
+  els.mSaldo.textContent = money(totalCobrar);
+  els.mGanancia.textContent = money(gan);
+}
+
+function renderSelects(){
+  const opt = db.clientes.map(c => `<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('');
+  els.pCliente.innerHTML = opt;
+  const popt = db.prestamos.map(p => `<option value="${esc(p.id)}">${esc(clienteName(p.clienteId))} - ${money(p.monto)}</option>`).join('');
+  els.payPrestamo.innerHTML = popt;
+  if(els.calPrestamo) els.calPrestamo.innerHTML = popt;
+}
+
+function render(){
+  renderSelects();
+  renderMetrics();
+  renderClientes();
+  renderPrestamos();
+  renderPagos();
+  renderPanel();
+  renderCalendario();
+  renderRecibo();
+  if(els.tablaReporte) renderReporte();
+  showGlobalWarnings();
+}
+
+/* ============================================================
+   ADVERTENCIAS GLOBALES (backup viejo, file://, etc.)
+   ============================================================ */
+function showGlobalWarnings(){
+  const warns = [];
+  // Verificar si estamos en file://
+  if(location.protocol === 'file:'){
+    warns.push('<b>Advertencia:</b> Estás abriendo el sistema como archivo local (file://). Algunos navegadores limitan las funciones de cifrado. Si tienes problemas con backups o PIN, sirve el archivo por HTTPS o ábrelo en Firefox.');
+  }
+  // Verificar backup viejo
+  const lastBackup = localStorage.yissyLastBackup;
+  if(lastBackup){
+    const days = (Date.now() - new Date(lastBackup).getTime()) / 86400000;
+    if(days > BACKUP_WARN_DAYS){
+      warns.push(`<b>Último backup hace ${Math.floor(days)} días.</b> Se recomienda descargar un backup nuevo en la sección Backup.`);
+    }
+  }else if(db.clientes.length > 0 || db.prestamos.length > 0){
+    warns.push('<b>Nunca has hecho un backup.</b> Ve a la sección Backup y descarga uno ahora.');
+  }
+  // Estado del PIN
+  if(!isPinSet() && (db.clientes.length > 0 || db.prestamos.length > 0)){
+    warns.push('<b>Sin clave de protección.</b> Tus datos están en texto plano. Configura una clave en Backup → Seguridad.');
+  }
+  els.globalWarnings.innerHTML = warns.map(w => `<div class="warn">${w}</div>`).join('');
+}
+
+/* ============================================================
+   IMPRESIÓN
+   ============================================================ */
+function imprimirFactura(){
+  document.body.classList.remove('printTicket');
+  els.reciboBox.style.display = 'block';
+  els.ticketBox.style.display = 'none';
+  window.print();
+}
+function imprimirTicket(){
+  document.body.classList.add('printTicket');
+  els.reciboBox.style.display = 'none';
+  els.ticketBox.style.display = 'block';
+  window.print();
+}
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('printTicket');
+  els.reciboBox.style.display = 'block';
+  els.ticketBox.style.display = 'none';
+});
+
+/* ============================================================
+   BACKUP / EXPORT
+   ============================================================ */
+async function exportBackup(enc){
+  let data = JSON.stringify({version:2, fecha:new Date().toISOString(), db});
+  let name = 'YISSY_BACKUP_' + new Date().toISOString().slice(0,10) + '_' + new Date().toTimeString().slice(0,8).replace(/:/g,'') + '.json';
+  if(enc){
+    const pass = await promptPassword('Clave para proteger el backup', 'Crea una clave para este backup:');
+    if(!pass) return;
+    if(pass.length < 4){ alert('La clave debe tener al menos 4 caracteres.'); return; }
+    const salt = randomBytes(16);
+    const iv = randomBytes(12);
+    const key = await pbkdf2Key(pass, salt, ['encrypt']);
+    const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, new TextEncoder().encode(data));
+    data = JSON.stringify({
+      encrypted:true, v:2,
+      salt:[...salt], iv:[...iv],
+      ct:bufToB64(ct),
+      fecha:new Date().toISOString()
+    });
+    name = 'YISSY_BACKUP_SEGURO_' + new Date().toISOString().slice(0,10) + '_' + new Date().toTimeString().slice(0,8).replace(/:/g,'') + '.json';
+  }
+  const blob = new Blob([data], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  localStorage.yissyLastBackup = new Date().toISOString();
+  els.backupStatus.innerHTML = '<span class="badge ok">Backup descargado: ' + esc(name) + '</span>';
+  showGlobalWarnings();
+}
+
+async function importBackup(e){
+  const f = e.target.files[0];
+  if(!f) return;
+  els.importFile.value = '';
+  let txt;
+  try{
+    txt = await f.text();
+  }catch(err){
+    alert('No se pudo leer el archivo: ' + err.message);
+    return;
+  }
+  let obj;
+  try{
+    obj = JSON.parse(txt);
+  }catch(err){
+    alert('Archivo inválido (no es JSON): ' + err.message);
+    return;
+  }
+  if(obj.encrypted){
+    const pass = await promptPassword('Clave del backup', 'Introduce la clave de este backup cifrado:');
+    if(!pass) return;
+    try{
+      const salt = new Uint8Array(obj.salt);
+      const iv = new Uint8Array(obj.iv);
+      const key = await pbkdf2Key(pass, salt, ['decrypt']);
+      const dec = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, b64ToBuf(obj.ct));
+      txt = new TextDecoder().decode(dec);
+      obj = JSON.parse(txt);
+    }catch(err){
+      alert('Clave incorrecta o archivo corrupto.');
+      return;
+    }
+  }
+  if(!obj.db || !Array.isArray(obj.db.clientes)){
+    alert('Backup inválido: estructura incorrecta.');
+    return;
+  }
+  pendingBackupData = obj.db;
+  openModal(
+    'Restaurar backup',
+    `<p>Se reemplazarán TODOS los datos actuales con el backup.</p>
+     <p>Backup de fecha: <b>${esc(obj.fecha||'?')}</b></p>
+     <p>Clientes en backup: <b>${obj.db.clientes.length}</b></p>
+     <p>Préstamos en backup: <b>${obj.db.prestamos.length}</b></p>
+     <p>Pagos en backup: <b>${obj.db.pagos.length}</b></p>
+     <p>¿Deseas continuar?</p>`,
+    async () => {
+      db = obj.db;
+      if(!db.nextPagoNum) db.nextPagoNum = (db.pagos?.length || 0) + 1;
+      await save();
+      closeModal();
+      alert('Backup restaurado correctamente.');
+    }
+  );
+}
+
+function wipeData(){
+  openModal(
+    'Borrar TODOS los datos',
+    `<p class="red"><b>Esta acción no se puede deshacer.</b></p>
+     <p>Se borrarán todos los clientes, préstamos, pagos y recibos.</p>
+     <p>Te recomendamos descargar un backup antes.</p>
+     <p>Para confirmar, escribe <b>BORRAR</b> en mayúsculas:</p>
+     <input id="wipeConfirm" style="margin-top:8px">`,
+    () => {
+      const v = $('wipeConfirm').value;
+      if(v !== 'BORRAR'){
+        alert('No escribiste BORRAR. Operación cancelada.');
+        return;
+      }
+      localStorage.removeItem('yissyData');
+      localStorage.removeItem('yissyDataEnc');
+      localStorage.removeItem('yissyPin');
+      localStorage.removeItem('yissyAutoBackup');
+      localStorage.removeItem('yissyLastBackup');
+      // No borrar sessionStorage.yissySessionPin para mantener cifrado
+      db = {clientes:[], prestamos:[], pagos:[], lastReceipt:null, nextPagoNum:1};
+      render();
+      closeModal();
+      alert('Todos los datos han sido borrados.');
+    }
+  );
+}
+
+/* ============================================================
+   CSV EXPORT (Reporte)
+   ============================================================ */
+function exportarReporteCSV(){
+  const mes = els.repMes?.value || todayStr().slice(0,7);
+  const pagosMes = db.pagos.filter(x => x.fecha && x.fecha.startsWith(mes));
+  if(pagosMes.length === 0){
+    alert('No hay pagos en este mes para exportar.');
+    return;
+  }
+  let csv = 'Fecha,Cliente,Monto,Nota\n';
+  pagosMes.forEach(x => {
+    const p = db.prestamos.find(pp => pp.id === x.prestamoId) || {};
+    const cliente = (clienteName(p.clienteId)).replace(/"/g,'""');
+    const nota = (x.nota||'').replace(/"/g,'""');
+    csv += `${x.fecha},"${cliente}",${x.monto},"${nota}"\n`;
+  });
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `YISSY_Reporte_${mes}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ============================================================
+   MODAL GENÉRICO
+   ============================================================ */
+function openModal(title, bodyHTML, onOk){
+  els.modalTitle.textContent = title;
+  els.modalBody.innerHTML = bodyHTML;
+  els.modal.style.display = 'flex';
+  els.modalOk.onclick = onOk || closeModal;
+  els.modalCancel.onclick = closeModal;
+}
+function closeModal(){
+  els.modal.style.display = 'none';
+  els.modalBody.innerHTML = '';
+}
+
+/* Prompt de contraseña usando modal */
+function promptPassword(title, message){
+  return new Promise(resolve => {
+    els.modalTitle.textContent = title;
+    els.modalBody.innerHTML = `
+      <p>${esc(message)}</p>
+      <input type="password" id="modalPassword" style="margin-top:8px">
+      <p class="note">La clave se usa solo para cifrar/descifrar este backup y no se guarda.</p>
+    `;
+    els.modal.style.display = 'flex';
+    const input = $('modalPassword');
+    input.focus();
+    const handler = () => {
+      const v = input.value;
+      els.modal.style.display = 'none';
+      els.modalBody.innerHTML = '';
+      els.modalOk.onclick = null;
+      input.removeEventListener('keydown', enterHandler);
+      resolve(v);
+    };
+    const enterHandler = e => { if(e.key === 'Enter') handler(); };
+    input.addEventListener('keydown', enterHandler);
+    els.modalOk.onclick = handler;
+    els.modalCancel.onclick = () => {
+      els.modal.style.display = 'none';
+      els.modalBody.innerHTML = '';
+      els.modalOk.onclick = null;
+      input.removeEventListener('keydown', enterHandler);
+      resolve(null);
+    };
+  });
+}
+
+/* ============================================================
+   INICIALIZACIÓN
+   ============================================================ */
+function init(){
+  cacheDOM();
+  setupPinEnter();
+  // Verificar soporte crypto
+  if(!window.crypto || !crypto.subtle){
+    els.globalWarnings.innerHTML = '<div class="warn"><b>Este navegador no soporta cifrado.</b> El sistema funcionará en modo texto plano (sin PIN ni backup cifrado). Te recomendamos usar Chrome, Firefox o Safari actualizado.</div>';
+  }
+  if(isPinSet()){
+    els.lock.style.display = 'flex';
+    els.lockIntro.textContent = 'Introduce tu clave para entrar.';
+    els.setPinBtn.style.display = 'none';
+    els.forgotBtn.style.display = 'inline-block';
+    els.pin.focus();
+  }else{
+    // Sin PIN: cargar de texto plano si existe
+    try{
+      if(localStorage.yissyData){
+        db = JSON.parse(localStorage.yissyData);
+        if(!db.nextPagoNum) db.nextPagoNum = (db.pagos?.length || 0) + 1;
+      }
+    }catch(e){
+      console.error('Error al cargar:', e);
+      alert('Hubo un error al cargar los datos guardados. Es posible que estén corruptos. Considera restaurar un backup.');
+    }
+    // Inicializar fechas
+    els.pFecha.value = todayStr();
+    els.payFecha.value = todayStr();
+    if(els.repMes) els.repMes.value = todayStr().slice(0,7);
+    setTimeout(calcularPrimerPago, 0);
+    render();
+    showGlobalWarnings();
+  }
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
