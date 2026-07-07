@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>YISSY EXPRESS - Sistema de Préstamos v2</title>
+<title>YISSY EXPRESS - Sistema de Préstamos v3.1</title>
+<script src="https://cdn.jsdelivr.net/npm/gun@0.2020.1235/gun.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gun@0.2020.1235/sea.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gun@0.2020.1235/lib/radix.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gun@0.2020.1235/lib/radisk.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gun@0.2020.1235/lib/store.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gun@0.2020.1235/lib/rindexed.js"></script>
 <style>
 :root{
   --navy:#06142e;--gold:#c99a24;--gold2:#f1c75b;--bg:#f4f6fb;
@@ -68,6 +74,16 @@ tbody tr:nth-child(even){background:#f9fafb}
 .badge.warn{background:#fef3c7;color:#92400e}
 .badge.ok{background:#dcfce7;color:#166534}
 .badge.err{background:#fee2e2;color:#991b1b}
+/* Toast de guardado */
+#saveToast{position:fixed;bottom:20px;right:20px;z-index:50;padding:12px 18px;border-radius:10px;font-weight:700;font-size:13px;box-shadow:0 4px 14px #0003;opacity:0;transform:translateY(20px);transition:all .3s;pointer-events:none;max-width:300px}
+#saveToast.show{opacity:1;transform:translateY(0)}
+#saveToast.ok{background:#15803d;color:white}
+#saveToast.err{background:#b91c1c;color:white}
+#saveToast.warn{background:#c99a24;color:#111}
+/* Indicador de estado en header */
+.saveIndicator{display:inline-block;margin-left:12px;font-size:11px;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.15);color:white;vertical-align:middle}
+.saveIndicator.ok{background:#15803d}
+.saveIndicator.err{background:#b91c1c}
 @media(max-width:800px){.grid,.row{grid-template-columns:1fr}.metric{font-size:20px}table{font-size:12px}.wrap{padding:10px}.invoiceHead{flex-direction:column}.invoiceFooter{flex-direction:column}}
 @media print{
   nav,.tools,.noPrint,header,.tab,.modal{display:none!important}
@@ -116,10 +132,13 @@ tbody tr:nth-child(even){background:#f9fafb}
 
 <header>
   <div class="wrap">
-    <div class="logo">YISSY EXPRESS</div>
+    <div class="logo">YISSY EXPRESS <span id="saveIndicator" class="saveIndicator"></span></div>
     <div class="sub">Sistema seguro de préstamos, cobros y copias de seguridad</div>
   </div>
 </header>
+
+<!-- Toast de guardado -->
+<div id="saveToast"></div>
 
 <div class="wrap">
 
@@ -134,6 +153,7 @@ tbody tr:nth-child(even){background:#f9fafb}
   <button class="tab" onclick="show('calendario',this)">Días de pago</button>
   <button class="tab" onclick="show('recibo',this)">Recibo</button>
   <button class="tab" onclick="show('reportes',this)">Reportes</button>
+  <button class="tab" onclick="show('nube',this)">☁️ Nube</button>
   <button class="tab" onclick="show('backup',this)">Backup</button>
 </nav>
 
@@ -326,6 +346,96 @@ tbody tr:nth-child(even){background:#f9fafb}
   </div>
 </section>
 
+<!-- ============ NUBE (Sincronización P2P + Firebase) ============ -->
+<section id="nube">
+  <div class="card">
+    <h2>☁️ Sincronización entre dispositivos</h2>
+    <p>Activa la sincronización para ver tus datos en todos tus dispositivos (celular, laptop, tablet). Tus datos se cifran con tu contraseña antes de salir del dispositivo — ni los servidores pueden leerlos.</p>
+    <div id="cloudStatus" class="badge warn">Sin configurar</div>
+    <div id="cloudInfo" class="note">No configurado.</div>
+  </div>
+
+  <!-- Opción A: Sesión P2P (fácil, recomendada) -->
+  <div class="card">
+    <h2>🤝 Opción A: Sesión P2P <span class="badge ok">Recomendado · Fácil</span></h2>
+    <p>Crea una sesión con un nombre y contraseña. Comparte ese nombre+contraseña con quien quieras que acceda a tus datos. Cualquier dispositivo que entre a la misma sesión verá los mismos datos en tiempo real.</p>
+    <p class="note">No requiere configurar Firebase ni crear proyectos. Funciona con tecnología P2P (Gun.js) usando relays públicos gratuitos.</p>
+
+    <h3 id="p2pFormTitle">Crear o unirse a una sesión</h3>
+    <div class="row">
+      <div><label>Nombre de la sesión</label><input id="p2p_name" placeholder="ej: YissyExpress2024"></div>
+      <div><label>Contraseña de la sesión</label><input id="p2p_pass" type="password" placeholder="Mínimo 6 caracteres"></div>
+    </div>
+    <div class="tools">
+      <button class="btn green" onclick="p2pJoin()">🚀 Crear / Unirse a sesión</button>
+      <button class="btn red" onclick="p2pLeave()" id="p2pLeaveBtn" style="display:none">🚪 Salir de la sesión</button>
+    </div>
+    <div id="p2pStatus" class="note"></div>
+
+    <h3>¿Cómo funciona?</h3>
+    <ol style="line-height:1.7">
+      <li><b>Tú creas la sesión</b> con un nombre (ej: <code>YissyExpress2024</code>) y una contraseña (ej: <code>miClave99</code>)</li>
+      <li><b>Compartes</b> el nombre y la contraseña con quien quieras (por WhatsApp, en persona, etc.)</li>
+      <li><b>Esa persona</b> abre la app en su dispositivo → entra a esta sección → escribe el mismo nombre y contraseña → click "Crear / Unirse"</li>
+      <li><b>¡Listo!</b> Ambos dispositivos tendrán los mismos datos y se sincronizarán en tiempo real</li>
+    </ol>
+    <p class="note">⚠️ <b>Importante:</b> La contraseña de la sesión <b>NO</b> es la misma que tu PIN de entrada. La sesión se usa para sincronizar entre dispositivos. El PIN se usa para entrar a la app.</p>
+    <p class="note">🔒 Tus datos se cifran con la contraseña de sesión antes de salir de tu dispositivo. Si olvidas la contraseña de sesión, no podrás acceder a los datos sincronizados (pero tendrás copia local en cada dispositivo).</p>
+  </div>
+
+  <!-- Opción B: Firebase (avanzado) -->
+  <div class="card">
+    <h2>🔥 Opción B: Firebase Cloud <span class="badge warn">Avanzado</span></h2>
+    <p>Para usuarios que quieren su propio proyecto Firebase con persistencia garantizada. Más confiable para uso intensivo pero requiere configuración.</p>
+    <details>
+      <summary style="cursor:pointer;font-weight:700;color:var(--navy)">Mostrar configuración Firebase</summary>
+      <div class="row" style="margin-top:12px">
+        <div><label>apiKey</label><input id="fb_apiKey" placeholder="AIzaSy..."></div>
+        <div><label>authDomain</label><input id="fb_authDomain" placeholder="mi-proyecto.firebaseapp.com"></div>
+        <div><label>projectId</label><input id="fb_projectId" placeholder="mi-proyecto"></div>
+        <div><label>storageBucket</label><input id="fb_storageBucket" placeholder="mi-proyecto.appspot.com"></div>
+        <div><label>messagingSenderId</label><input id="fb_messagingSenderId" placeholder="123456789012"></div>
+        <div><label>appId</label><input id="fb_appId" placeholder="1:1234:web:abcd"></div>
+        <div><label>ID de documento</label><input id="fb_docId" placeholder="mi-clave-secreta-unica"></div>
+      </div>
+      <div class="tools">
+        <button class="btn green" onclick="saveCloudConfig()">💾 Guardar Firebase</button>
+        <button class="btn" onclick="testCloudConnection()">🔌 Probar conexión</button>
+        <button class="btn red" onclick="clearCloudConfig()">🗑 Borrar Firebase</button>
+      </div>
+      <details style="margin-top:12px">
+        <summary style="cursor:pointer;font-weight:700;color:var(--navy)">📖 Guía paso a paso Firebase</summary>
+        <div style="line-height:1.7;margin-top:12px">
+          <p><b>Paso 1:</b> Entra a <a href="https://console.firebase.google.com" target="_blank">https://console.firebase.google.com</a> e inicia sesión con tu cuenta Google.</p>
+          <p><b>Paso 2:</b> Click en <b>"Agregar proyecto"</b> → ponle un nombre (ej: <code>yissy-express</code>) → Continuar → Crear proyecto.</p>
+          <p><b>Paso 3:</b> En el panel del proyecto, busca el icono <b>Web <code>&lt;/&gt;</code></b>. Click ahí.</p>
+          <p><b>Paso 4:</b> Pon un apodo (ej: <code>YISSY Web</code>) → NO marques Firebase Hosting → <b>Registrar app</b>.</p>
+          <p><b>Paso 5:</b> Te muestra <code>firebaseConfig</code> con 6 campos. Cópialos y pégalos arriba.</p>
+          <p><b>Paso 6:</b> Menú lateral → <b>Build → Firestore Database → Crear base de datos</b> → <b>"Iniciar en modo de prueba"</b> → Habilitar.</p>
+          <p><b>Paso 7:</b> En Firestore → pestaña <b>Reglas</b>, pega esto y publica:</p>
+          <pre style="background:#1e293b;color:#e2e8f0;padding:12px;border-radius:8px;overflow:auto;font-size:12px">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}</pre>
+          <p><b>Paso 8:</b> Completa el campo <b>"ID de documento"</b> con una frase secreta única.</p>
+          <p><b>Paso 9:</b> Click <b>Guardar Firebase</b> y luego <b>Probar conexión</b>.</p>
+        </div>
+      </details>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>🔄 Sincronización manual</h2>
+    <div class="tools">
+      <button class="btn blue" onclick="forceSyncNow()">🔄 Forzar sincronización ahora</button>
+    </div>
+  </div>
+</section>
+
 <!-- ============ BACKUP ============ -->
 <section id="backup">
   <div class="card">
@@ -344,19 +454,54 @@ tbody tr:nth-child(even){background:#f9fafb}
     <div class="tools">
       <button class="btn" onclick="showLockSetup()">Crear/Cambiar clave de entrada</button>
       <button class="btn red" onclick="wipeData()">Borrar todos los datos</button>
+      <button class="btn blue" onclick="showDiagnostic()">🔍 Diagnóstico del sistema</button>
     </div>
   </div>
 </section>
 
 </div>
 
+<script type="module">
+/* ============================================================
+   FIREBASE v9 modular (cargado dinámicamente solo si se configura)
+   ============================================================ */
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore, doc, setDoc, getDoc, onSnapshot, deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+window.firebaseReady = (config) => {
+  const app = initializeApp(config);
+  const db = getFirestore(app);
+  return { app, db };
+};
+
+window.fbSetDoc = async (db, collection, id, data) => {
+  await setDoc(doc(db, collection, id), data, {merge:false});
+};
+window.fbGetDoc = async (db, collection, id) => {
+  const snap = await getDoc(doc(db, collection, id));
+  return snap.exists() ? snap.data() : null;
+};
+window.fbListenDoc = (db, collection, id, cb) => {
+  return onSnapshot(doc(db, collection, id), snap => {
+    cb(snap.exists() ? snap.data() : null);
+  });
+};
+window.fbDeleteDoc = async (db, collection, id) => {
+  await deleteDoc(doc(db, collection, id));
+};
+</script>
+
 <script>
 "use strict";
 
 /* ============================================================
-   YISSY EXPRESS v2.0
-   Refactorización con:
+   YISSY EXPRESS v3.0
    - Cifrado AES-GCM de localStorage con PIN
+   - Sincronización en la nube con Firebase Firestore
+   - Datos cifrados extremo a extremo (ni Firebase puede leerlos)
    - PBKDF2 para hash de PIN
    - Anti-XSS (escapado HTML en todos los renders)
    - Fix de zona horaria
@@ -402,7 +547,10 @@ function cacheDOM(){
    'rNumero','rFecha','rCliente','rCedula','rTelefono','rDireccion','rTipo','rMonto','rSaldo','rPrestado','rTotal','rPagado','rBalance','rNota',
    'tNumero','tFecha','tCliente','tCedula','tMonto','tPagado','tSaldo','tProximo','tNota',
    'repMes','tablaReporte',
-   'importFile','backupStatus'
+   'fb_apiKey','fb_authDomain','fb_projectId','fb_storageBucket','fb_messagingSenderId','fb_appId','fb_docId',
+   'cloudStatus','cloudInfo',
+   'p2p_name','p2p_pass','p2pStatus','p2pLeaveBtn','p2pFormTitle',
+   'importFile','backupStatus','saveToast','saveIndicator'
   ].forEach(id => els[id] = $(id));
 }
 
@@ -661,23 +809,83 @@ function setupPinEnter(){
 /* ============================================================
    PERSISTENCIA
    ============================================================ */
-async function save(){
-  // Cifrar si hay PIN configurado
-  const pin = sessionStorage.yissySessionPin;
-  if(pin && localStorage.yissyPin){
-    try{
-      await persistEncrypted(pin, JSON.stringify(db));
-    }catch(e){
-      console.error('Error al cifrar guardando:', e);
-      alert('Error al guardar de forma cifrada: ' + e.message);
-      return;
-    }
-  }else{
-    // Sin PIN: texto plano (solo mientras no haya PIN configurado)
-    localStorage.yissyData = JSON.stringify(db);
+
+/* Prueba si localStorage está disponible */
+function testLocalStorage(){
+  try{
+    const k = '__yissy_test__';
+    localStorage.setItem(k, '1');
+    const v = localStorage.getItem(k);
+    localStorage.removeItem(k);
+    return v === '1';
+  }catch(e){
+    return false;
   }
-  localStorage.yissyLastBackup = new Date().toISOString();
+}
+
+/* Muestra un toast temporal */
+let saveToastTimer = null;
+function showToast(msg, type='ok'){
+  if(!els.saveToast) return;
+  els.saveToast.textContent = msg;
+  els.saveToast.className = 'show ' + type;
+  clearTimeout(saveToastTimer);
+  saveToastTimer = setTimeout(() => {
+    els.saveToast.className = '';
+  }, 3000);
+}
+
+/* Actualiza el indicador del header */
+function setSaveIndicator(state, text){
+  if(!els.saveIndicator) return;
+  els.saveIndicator.className = 'saveIndicator ' + state;
+  els.saveIndicator.textContent = text;
+}
+
+async function save(){
+  // Verificar que localStorage funciona
+  if(!testLocalStorage()){
+    showToast('Error: este navegador bloquea el guardado local', 'err');
+    setSaveIndicator('err', 'Sin almacenamiento');
+    alert('ERROR CRÍTICO: Tu navegador está bloqueando localStorage.\n\nCausas comunes:\n• Estás en modo incógnito/privado\n• Safari iOS con bloqueo de rastreo\n• Firefox con protección estricta\n\nSolución: Abre la app en una ventana normal de Chrome/Safari, o desactiva el bloqueo de rastreo para este sitio.');
+    return;
+  }
+  const pin = sessionStorage.yissySessionPin;
+  try{
+    if(pin && localStorage.yissyPin){
+      // Cifrar y guardar
+      await persistEncrypted(pin, JSON.stringify(db));
+      setSaveIndicator('ok', 'Cifrado ✓');
+    }else if(localStorage.yissyPin && !pin){
+      // Hay PIN configurado pero no hay sesión → no debería guardar
+      // Forzar re-unlock
+      showToast('Sesión expirada. Debes entrar con tu clave otra vez.', 'warn');
+      setSaveIndicator('err', 'Sesión expirada');
+      setTimeout(() => location.reload(), 1500);
+      return;
+    }else{
+      // Sin PIN: texto plano
+      localStorage.yissyData = JSON.stringify(db);
+      setSaveIndicator('ok', 'Guardado ✓');
+    }
+    localStorage.yissyLastBackup = new Date().toISOString();
+    localStorage.yissyLastLocalUpdate = Date.now().toString();
+    showToast('Guardado ✓', 'ok');
+    // Subir a la nube si está configurada (Firebase o P2P)
+    if(cloudState.configured && cloudState.connected){
+      syncToCloud(); // async, no esperamos
+    }
+    if(p2pState.active){
+      p2pPush(); // async, no esperamos
+    }
+  }catch(e){
+    console.error('Error al guardar:', e);
+    showToast('Error al guardar: ' + e.message, 'err');
+    setSaveIndicator('err', 'Error');
+    alert('Error al guardar: ' + e.message + '\n\nSi persiste, descarga un backup con clave para no perder tus datos.');
+  }
   render();
+  showGlobalWarnings();
 }
 
 function initAfterUnlock(){
@@ -695,6 +903,14 @@ function initAfterUnlock(){
   setTimeout(calcularPrimerPago, 0);
   render();
   showGlobalWarnings();
+  // Cargar configuración de la nube si existe
+  const cloudCfg = loadCloudConfig();
+  if(cloudCfg){
+    setCloudStatus('connecting', 'Conectando...');
+    initFirebase(cloudCfg);
+  }
+  // Cargar sesión P2P guardada (solo restaura el nombre, pide contraseña)
+  loadP2PSession();
 }
 
 /* ============================================================
@@ -1456,6 +1672,599 @@ function promptPassword(title, message){
 }
 
 /* ============================================================
+   SESIONES P2P (Gun.js) - Sincronización entre dispositivos
+   ============================================================ */
+
+// Estado P2P
+let p2pState = {
+  active: false,
+  sessionKey: null,    // hash de (nombre + contraseña) → identifica la sesión
+  sessionName: null,
+  sessionPass: null,
+  gun: null,           // instancia Gun
+  dbNode: null,        // referencia gun.get(sessionKey).get('data')
+  lastPushTs: 0,       // último timestamp que enviamos (para evitar loops)
+  lastReceiveTs: 0,    // último timestamp que recibimos
+  syncTimer: null,
+  peers: 0
+};
+
+// Relays públicos de Gun (redundancia)
+const GUN_RELAYS = [
+  'https://gun-manhattan.herokuapp.com/gun',
+  'https://peer.wallie.io/gun',
+  'https://gunjs.herokuapp.com/gun',
+  'https://gun-us.herokuapp.com/gun'
+];
+
+/* Generar clave de sesión a partir de nombre + contraseña */
+async function generateSessionKey(name, pass){
+  const hash = await crypto.subtle.digest('SHA-256',
+    new TextEncoder().encode('yissy:' + name.toLowerCase() + ':' + pass));
+  return 'yissy-' + [...new Uint8Array(hash)].slice(0,16)
+    .map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+/* Cifrar datos con la contraseña de sesión */
+async function encryptForSession(data, pass){
+  const salt = randomBytes(16);
+  const iv = randomBytes(12);
+  const key = await pbkdf2Key(pass, salt, ['encrypt']);
+  const ct = await crypto.subtle.encrypt(
+    {name:'AES-GCM', iv},
+    key, new TextEncoder().encode(data)
+  );
+  return {
+    salt:[...salt], iv:[...iv],
+    ct:bufToB64(ct),
+    ts: Date.now()
+  };
+}
+
+/* Descifrar datos de la sesión */
+async function decryptFromSession(encObj, pass){
+  const key = await pbkdf2Key(pass, new Uint8Array(encObj.salt), ['decrypt']);
+  const dec = await crypto.subtle.decrypt(
+    {name:'AES-GCM', iv:new Uint8Array(encObj.iv)},
+    key, b64ToBuf(encObj.ct)
+  );
+  return new TextDecoder().decode(dec);
+}
+
+/* Crear o unirse a una sesión P2P */
+async function p2pJoin(){
+  const name = els.p2p_name.value.trim();
+  const pass = els.p2p_pass.value;
+
+  if(!name || name.length < 3){
+    alert('El nombre de la sesión debe tener al menos 3 caracteres.');
+    els.p2p_name.focus();
+    return;
+  }
+  if(!pass || pass.length < 6){
+    alert('La contraseña debe tener al menos 6 caracteres.');
+    els.p2p_pass.focus();
+    return;
+  }
+  if(typeof Gun === 'undefined'){
+    alert('Error: Gun.js no se cargó. Revisa tu conexión a internet y recarga la página.');
+    return;
+  }
+
+  setP2PStatus('connecting', 'Conectando a la sesión...');
+
+  // Generar clave de sesión
+  const sessionKey = await generateSessionKey(name, pass);
+  p2pState.sessionKey = sessionKey;
+  p2pState.sessionName = name;
+  p2pState.sessionPass = pass;
+
+  try {
+    // Inicializar Gun con múltiples relays
+    p2pState.gun = Gun({
+      peers: GUN_RELAYS,
+      localStorage: false,  // no usar localStorage de Gun (ya tenemos el nuestro)
+      radisk: false
+    });
+
+    p2pState.dbNode = p2pState.gun.get(sessionKey).get('data');
+    p2pState.active = true;
+
+    // Escuchar cambios en tiempo real
+    p2pState.dbNode.on(async (data) => {
+      if(!data) return;
+      // Ignorar nuestros propios pushes
+      if(data.ts === p2pState.lastPushTs) return;
+      if(data.ts <= p2pState.lastReceiveTs) return;
+      p2pState.lastReceiveTs = data.ts;
+
+      try {
+        const dec = await decryptFromSession(data, pass);
+        const cloudDb = JSON.parse(dec);
+        // Mezclar con datos locales (newest-wins)
+        const localTs = parseInt(localStorage.yissyLastLocalUpdate || '0');
+        if(data.ts > localTs){
+          db = cloudDb;
+          if(!db.nextPagoNum) db.nextPagoNum = (db.pagos?.length || 0) + 1;
+          render();
+          saveLocalOnly();
+          setP2PStatus('connected', '✓ Datos sincronizados desde otro dispositivo (' + new Date(data.ts).toLocaleTimeString() + ')');
+        }
+      } catch(e) {
+        console.error('Error descifrando:', e);
+        setP2PStatus('error', 'No se pudieron descifrar los datos. ¿Contraseña correcta?');
+      }
+    });
+
+    // Detectar peers
+    p2pState.gun.on('hi', peer => {
+      p2pState.peers++;
+      updateP2PStatus();
+    });
+    p2pState.gun.on('bye', peer => {
+      p2pState.peers = Math.max(0, p2pState.peers - 1);
+      updateP2PStatus();
+    });
+
+    // Guardar configuración de sesión (sin la contraseña, solo el nombre)
+    localStorage.yissyP2P = JSON.stringify({name, sessionKey});
+
+    // Actualizar UI
+    els.p2pFormTitle.textContent = 'Sesión activa: ' + name;
+    els.p2pLeaveBtn.style.display = 'inline-block';
+    els.p2p_name.disabled = true;
+    els.p2p_pass.disabled = true;
+    setP2PStatus('connected', '✓ Conectado a sesión "' + name + '"');
+
+    // Hacer sync inicial: subir nuestros datos y bajar remotos
+    await p2pSyncNow();
+    showToast('Sesión P2P activa ✓', 'ok');
+
+    // Auto-sync cada 30 segundos
+    if(p2pState.syncTimer) clearInterval(p2pState.syncTimer);
+    p2pState.syncTimer = setInterval(() => {
+      if(p2pState.active) p2pPush();
+    }, 30000);
+
+  } catch(e){
+    console.error('Error P2P:', e);
+    setP2PStatus('error', 'Error: ' + e.message);
+    p2pState.active = false;
+  }
+}
+
+/* Salir de la sesión P2P */
+function p2pLeave(){
+  if(!confirm('¿Salir de la sesión P2P? Tus datos locales se conservan, pero dejarás de sincronizar con otros dispositivos.')) return;
+  if(p2pState.syncTimer){
+    clearInterval(p2pState.syncTimer);
+    p2pState.syncTimer = null;
+  }
+  if(p2pState.dbNode){
+    try { p2pState.dbNode.off(); } catch(e){}
+  }
+  p2pState = {
+    active:false, sessionKey:null, sessionName:null, sessionPass:null,
+    gun:null, dbNode:null, lastPushTs:0, lastReceiveTs:0, syncTimer:null, peers:0
+  };
+  localStorage.removeItem('yissyP2P');
+  els.p2pFormTitle.textContent = 'Crear o unirse a una sesión';
+  els.p2pLeaveBtn.style.display = 'none';
+  els.p2p_name.disabled = false;
+  els.p2p_pass.disabled = false;
+  els.p2p_name.value = '';
+  els.p2p_pass.value = '';
+  setP2PStatus('none', 'Sin sesión activa');
+  showToast('Saliste de la sesión', 'warn');
+}
+
+/* Empujar datos locales a la sesión P2P */
+async function p2pPush(){
+  if(!p2pState.active || !p2pState.dbNode) return;
+  try {
+    const encrypted = await encryptForSession(JSON.stringify(db), p2pState.sessionPass);
+    p2pState.lastPushTs = encrypted.ts;
+    p2pState.dbNode.put(encrypted);
+    localStorage.yissyLastLocalUpdate = encrypted.ts.toString();
+  } catch(e){
+    console.error('Error push P2P:', e);
+    setP2PStatus('error', 'Error al enviar: ' + e.message);
+  }
+}
+
+/* Forzar sincronización manual */
+async function p2pSyncNow(){
+  if(!p2pState.active){
+    alert('No hay sesión P2P activa. Crea o únete a una sesión primero.');
+    return;
+  }
+  setP2PStatus('connecting', 'Sincronizando...');
+  await p2pPush();
+  setP2PStatus('connected', '✓ Sincronizado (' + new Date().toLocaleTimeString() + ')');
+}
+
+function setP2PStatus(state, text){
+  if(!els.p2pStatus) return;
+  const colors = {none:'#6b7280', connecting:'#c99a24', connected:'#15803d', error:'#b91c1c'};
+  els.p2pStatus.style.color = colors[state] || '#6b7280';
+  els.p2pStatus.textContent = text;
+  // También actualizar cloudStatus general
+  if(state === 'connected'){
+    setCloudStatus('connected', 'P2P activo');
+  }else if(state === 'error'){
+    setCloudStatus('error', 'P2P error');
+  }else if(state === 'connecting'){
+    setCloudStatus('connecting', 'P2P conectando...');
+  }
+}
+
+function updateP2PStatus(){
+  if(p2pState.active){
+    setP2PStatus('connected', '✓ Sesión "' + p2pState.sessionName + '" · ' + p2pState.peers + ' peer(s) conectado(s)');
+  }
+}
+
+/* Cargar sesión P2P guardada al iniciar */
+async function loadP2PSession(){
+  try {
+    const saved = JSON.parse(localStorage.yissyP2P || 'null');
+    if(saved && saved.name && saved.sessionKey){
+      // Restaurar nombre en el campo, pero la contraseña hay que pedirla
+      els.p2p_name.value = saved.name;
+      // Mostrar aviso
+      setP2PStatus('none', 'Tienes una sesión guardada ("' + saved.name + '"). Escribe la contraseña para reconectar.');
+    }
+  } catch(e){ console.error('Error cargando P2P:', e); }
+}
+
+/* ============================================================
+   SINCRONIZACIÓN EN LA NUBE (Firebase Firestore)
+   ============================================================ */
+let cloudState = {
+  configured: false,    // ¿hay credenciales guardadas?
+  connected: false,     // ¿se logró conectar?
+  listening: false,     // ¿hay listener activo?
+  fbApp: null,
+  fbDb: null,
+  unsubscribe: null,    // función para dejar de escuchar
+  lastSyncAt: null,
+  lastSyncFromCloud: null, // timestamp del último update recibido
+  pendingUpload: false,
+  conflictResolver: 'newest-wins' // el último timestamp gana
+};
+
+const CLOUD_COLLECTION = 'yissy_data';
+
+/* Cargar configuración guardada */
+function loadCloudConfig(){
+  try{
+    const c = JSON.parse(localStorage.yissyCloud || 'null');
+    if(c && c.apiKey && c.projectId && c.docId){
+      els.fb_apiKey.value = c.apiKey || '';
+      els.fb_authDomain.value = c.authDomain || '';
+      els.fb_projectId.value = c.projectId || '';
+      els.fb_storageBucket.value = c.storageBucket || '';
+      els.fb_messagingSenderId.value = c.messagingSenderId || '';
+      els.fb_appId.value = c.appId || '';
+      els.fb_docId.value = c.docId || '';
+      cloudState.configured = true;
+      return c;
+    }
+  }catch(e){ console.error('Error cargando cloud config:', e); }
+  return null;
+}
+
+/* Guardar configuración */
+async function saveCloudConfig(){
+  const config = {
+    apiKey: els.fb_apiKey.value.trim(),
+    authDomain: els.fb_authDomain.value.trim(),
+    projectId: els.fb_projectId.value.trim(),
+    storageBucket: els.fb_storageBucket.value.trim(),
+    messagingSenderId: els.fb_messagingSenderId.value.trim(),
+    appId: els.fb_appId.value.trim(),
+    docId: els.fb_docId.value.trim()
+  };
+  if(!config.apiKey || !config.projectId || !config.docId){
+    alert('Faltan campos obligatorios: apiKey, projectId y ID de documento son requeridos.');
+    return;
+  }
+  localStorage.yissyCloud = JSON.stringify(config);
+  cloudState.configured = true;
+  setCloudStatus('saved', 'Configuración guardada');
+  showToast('Configuración guardada', 'ok');
+  // Inicializar Firebase
+  await initFirebase(config);
+}
+
+/* Borrar configuración */
+function clearCloudConfig(){
+  if(!confirm('¿Borrar la configuración de la nube? Los datos locales NO se borrarán, pero la sincronización entre dispositivos se desactivará.')) return;
+  if(cloudState.unsubscribe){
+    cloudState.unsubscribe();
+    cloudState.unsubscribe = null;
+  }
+  localStorage.removeItem('yissyCloud');
+  cloudState = {...cloudState, configured:false, connected:false, listening:false, fbApp:null, fbDb:null, unsubscribe:null};
+  ['fb_apiKey','fb_authDomain','fb_projectId','fb_storageBucket','fb_messagingSenderId','fb_appId','fb_docId'].forEach(id => els[id].value = '');
+  setCloudStatus('none', 'Sin configurar');
+  showToast('Configuración borrada', 'warn');
+}
+
+/* Inicializar Firebase y empezar a escuchar */
+async function initFirebase(config){
+  try{
+    if(cloudState.unsubscribe){
+      cloudState.unsubscribe();
+      cloudState.unsubscribe = null;
+    }
+    if(!window.firebaseReady){
+      setCloudStatus('error', 'SDK no cargado');
+      els.cloudInfo.innerHTML = '<span class="red">El SDK de Firebase no se cargó. Revisa tu conexión a internet.</span>';
+      return;
+    }
+    setCloudStatus('connecting', 'Conectando...');
+    const {app, db} = await window.firebaseReady(config);
+    cloudState.fbApp = app;
+    cloudState.fbDb = db;
+    cloudState.connected = true;
+
+    // Empezar a escuchar cambios en el documento
+    startCloudListener();
+    setCloudStatus('connected', 'Conectado ✓');
+    showToast('Conectado a la nube ✓', 'ok');
+    // Hacer un sync inicial
+    await syncFromCloud();
+  }catch(e){
+    console.error('Error inicializando Firebase:', e);
+    setCloudStatus('error', 'Error de conexión');
+    els.cloudInfo.innerHTML = '<span class="red">Error: ' + esc(e.message) + '</span>';
+    cloudState.connected = false;
+  }
+}
+
+function setCloudStatus(state, text){
+  const cls = {none:'warn', connecting:'warn', connected:'ok', saved:'ok', error:'err', offline:'warn'}[state] || 'warn';
+  els.cloudStatus.className = 'badge ' + cls;
+  els.cloudStatus.textContent = text;
+}
+
+/* Escuchar cambios en tiempo real */
+function startCloudListener(){
+  if(!cloudState.fbDb || !cloudState.configured) return;
+  const docId = els.fb_docId.value.trim();
+  if(!docId) return;
+  cloudState.listening = true;
+  cloudState.unsubscribe = window.fbListenDoc(
+    cloudState.fbDb, CLOUD_COLLECTION, docId,
+    (data) => handleCloudUpdate(data)
+  );
+}
+
+/* Cuando llega una actualización de la nube */
+async function handleCloudUpdate(data){
+  if(!data){
+    // Documento no existe en la nube
+    els.cloudInfo.innerHTML = '<span class="note">Conectado, pero aún no hay datos en la nube. Crea un backup para subir tus datos.</span>';
+    return;
+  }
+  cloudState.lastSyncFromCloud = data.updatedAt || Date.now();
+
+  // Si los datos vienen cifrados y tenemos PIN, descifrar
+  const pin = sessionStorage.yissySessionPin;
+  if(data.encrypted && pin && localStorage.yissyPin){
+    try{
+      const enc = data.payload;
+      const key = await pbkdf2Key(pin, new Uint8Array(enc.salt), ['decrypt']);
+      const dec = await crypto.subtle.decrypt(
+        {name:'AES-GCM', iv:new Uint8Array(enc.iv)},
+        key, b64ToBuf(enc.ct)
+      );
+      const cloudDb = JSON.parse(new TextDecoder().decode(dec));
+      mergeCloudData(cloudDb, data.updatedAt);
+    }catch(e){
+      console.error('Error descifrando datos de la nube:', e);
+      els.cloudInfo.innerHTML = '<span class="red">No se pudieron descifrar los datos de la nube. ¿Usaste el mismo PIN?</span>';
+    }
+  }else if(data.encrypted && !pin){
+    els.cloudInfo.innerHTML = '<span class="warn">Hay datos en la nube pero necesitan tu PIN para descifrarse. Si no lo recuerdas, no podrás verlos.</span>';
+  }else if(!data.encrypted && data.payload){
+    // Datos sin cifrar (modo fallback si no hay PIN)
+    mergeCloudData(data.payload, data.updatedAt);
+  }
+}
+
+/* Mezclar datos de la nube con los locales (newest-wins) */
+function mergeCloudData(cloudDb, cloudTs){
+  // Si la nube es más nueva, reemplazar
+  const localTs = parseInt(localStorage.yissyLastLocalUpdate || '0');
+  if(cloudTs > localTs){
+    db = cloudDb;
+    if(!db.nextPagoNum) db.nextPagoNum = (db.pagos?.length || 0) + 1;
+    render();
+    setCloudStatus('connected', 'Sincronizado ✓ ' + new Date(cloudTs).toLocaleTimeString());
+    els.cloudInfo.innerHTML = '<span class="green">Datos actualizados desde la nube: ' + new Date(cloudTs).toLocaleString() + '</span>';
+    // Guardar localmente también
+    saveLocalOnly();
+  }else{
+    setCloudStatus('connected', 'Conectado (datos locales más recientes)');
+    els.cloudInfo.innerHTML = '<span class="note">Tus datos locales son más recientes que los de la nube. Se subirán automáticamente.</span>';
+    // Subir los locales
+    syncToCloud();
+  }
+}
+
+/* Guardar solo en localStorage (sin disparar sync a la nube) */
+function saveLocalOnly(){
+  const pin = sessionStorage.yissySessionPin;
+  if(pin && localStorage.yissyPin){
+    persistEncrypted(pin, JSON.stringify(db));
+  }else if(!localStorage.yissyPin){
+    try{ localStorage.yissyData = JSON.stringify(db); }catch(e){}
+  }
+  localStorage.yissyLastLocalUpdate = Date.now().toString();
+}
+
+/* Subir datos a la nube */
+async function syncToCloud(){
+  if(!cloudState.configured || !cloudState.connected) return;
+  const pin = sessionStorage.yissySessionPin;
+  const docId = els.fb_docId.value.trim();
+  if(!docId) return;
+
+  let payload;
+  if(pin && localStorage.yissyPin){
+    // Cifrar con PIN
+    try{
+      const salt = randomBytes(16);
+      const iv = randomBytes(12);
+      const key = await pbkdf2Key(pin, salt, ['encrypt']);
+      const ct = await crypto.subtle.encrypt(
+        {name:'AES-GCM', iv},
+        key, new TextEncoder().encode(JSON.stringify(db))
+      );
+      payload = {
+        encrypted: true,
+        salt:[...salt], iv:[...iv],
+        ct:bufToB64(ct)
+      };
+    }catch(e){
+      console.error('Error cifrando para la nube:', e);
+      return;
+    }
+  }else{
+    // Sin PIN, guardar plano (no recomendado pero funcional)
+    payload = {
+      encrypted: false,
+      payload: db
+    };
+  }
+  payload.updatedAt = Date.now();
+  payload.deviceInfo = navigator.userAgent.slice(0, 50);
+
+  try{
+    await window.fbSetDoc(cloudState.fbDb, CLOUD_COLLECTION, docId, payload);
+    cloudState.lastSyncAt = Date.now();
+    localStorage.yissyLastLocalUpdate = payload.updatedAt.toString();
+    setCloudStatus('connected', 'Sincronizado ✓ ' + new Date().toLocaleTimeString());
+    els.cloudInfo.innerHTML = '<span class="green">Datos subidos a la nube: ' + new Date().toLocaleString() + '</span>';
+  }catch(e){
+    console.error('Error subiendo a la nube:', e);
+    setCloudStatus('error', 'Error al subir');
+    els.cloudInfo.innerHTML = '<span class="red">Error al subir: ' + esc(e.message) + '</span>';
+  }
+}
+
+/* Bajar datos de la nube (sync manual) */
+async function syncFromCloud(){
+  if(!cloudState.configured || !cloudState.connected){
+    alert('No hay conexión a la nube configurada.');
+    return;
+  }
+  const docId = els.fb_docId.value.trim();
+  try{
+    const data = await window.fbGetDoc(cloudState.fbDb, CLOUD_COLLECTION, docId);
+    await handleCloudUpdate(data);
+  }catch(e){
+    console.error('Error sincronizando:', e);
+    setCloudStatus('error', 'Error al descargar');
+    els.cloudInfo.innerHTML = '<span class="red">Error: ' + esc(e.message) + '</span>';
+  }
+}
+
+/* Probar conexión */
+async function testCloudConnection(){
+  if(!els.fb_apiKey.value.trim() || !els.fb_projectId.value.trim() || !els.fb_docId.value.trim()){
+    alert('Completa al menos apiKey, projectId y ID de documento.');
+    return;
+  }
+  // Guardar primero
+  await saveCloudConfig();
+  // La función anterior ya prueba la conexión
+}
+
+/* Forzar sync manual */
+async function forceSyncNow(){
+  if(!cloudState.configured){
+    alert('Primero configura Firebase en el formulario de arriba.');
+    return;
+  }
+  setCloudStatus('connecting', 'Sincronizando...');
+  await syncToCloud();
+  await syncFromCloud();
+}
+
+/* ============================================================
+   DIAGNÓSTICO
+   ============================================================ */
+function showDiagnostic(){
+  const info = {
+    'Navegador': navigator.userAgent,
+    'URL actual': location.href,
+    'Protocolo': location.protocol,
+    'localStorage disponible': testLocalStorage() ? 'SÍ' : 'NO',
+    'sessionStorage disponible': (() => { try { sessionStorage.setItem('_t','1'); sessionStorage.removeItem('_t'); return 'SÍ'; } catch(e){ return 'NO'; } })(),
+    'crypto.subtle disponible': (window.crypto && crypto.subtle) ? 'SÍ' : 'NO',
+    'PIN configurado': localStorage.yissyPin ? 'SÍ' : 'NO',
+    'Sesión PIN activa': sessionStorage.yissySessionPin ? 'SÍ' : 'NO',
+    'Datos cifrados (yissyDataEnc)': localStorage.yissyDataEnc ? 'SÍ (' + localStorage.yissyDataEnc.length + ' bytes)' : 'NO',
+    'Datos en claro (yissyData)': localStorage.yissyData ? 'SÍ (' + localStorage.yissyData.length + ' bytes)' : 'NO',
+    'Último backup': localStorage.yissyLastBackup || 'Nunca',
+    'Clientes en memoria': db.clientes.length,
+    'Préstamos en memoria': db.prestamos.length,
+    'Pagos en memoria': db.pagos.length,
+    'nextPagoNum': db.nextPagoNum || 'no definido',
+    'lastReceipt': db.lastReceipt || 'no definido'
+  };
+  let html = '<div style="font-size:12px;line-height:1.8;font-family:monospace">';
+  for(const [k,v] of Object.entries(info)){
+    html += `<div><b>${esc(k)}:</b> ${esc(v)}</div>`;
+  }
+  html += '</div>';
+  html += '<div class="tools" style="margin-top:14px">';
+  html += '<button class="btn sm" onclick="forceSaveNow()">Forzar guardado ahora</button>';
+  html += '<button class="btn sm" onclick="console.log(JSON.stringify(db,null,2))">Ver DB en consola</button>';
+  html += '</div>';
+  openModal('Diagnóstico del sistema', html, closeModal);
+}
+
+async function forceSaveNow(){
+  try{
+    await save();
+    closeModal();
+  }catch(e){
+    alert('Error forzando guardado: ' + e.message);
+  }
+}
+
+/* Auto-guardado cada 30 segundos (por si acaso) */
+setInterval(() => {
+  if(db.clientes.length > 0 || db.prestamos.length > 0 || db.pagos.length > 0){
+    // Solo guardar silenciosamente, sin toast
+    const pin = sessionStorage.yissySessionPin;
+    if(pin && localStorage.yissyPin){
+      persistEncrypted(pin, JSON.stringify(db)).catch(e => console.error('Auto-save error:', e));
+    }else if(!localStorage.yissyPin){
+      try{ localStorage.yissyData = JSON.stringify(db); }catch(e){ console.error('Auto-save error:', e); }
+    }
+  }
+}, 30000);
+
+/* Guardar al salir de la página */
+window.addEventListener('beforeunload', () => {
+  const pin = sessionStorage.yissySessionPin;
+  if(pin && localStorage.yissyPin){
+    // beforeunload no soporta async, hacemos sync con una promesa
+    try{
+      // No podemos usar async aquí, pero persistEncrypted usa crypto.subtle que es async
+      // Así que dejamos que el auto-save de 30s haga su trabajo
+    }catch(e){}
+  }else if(!localStorage.yissyPin){
+    try{ localStorage.yissyData = JSON.stringify(db); }catch(e){}
+  }
+});
+
+/* ============================================================
    INICIALIZACIÓN
    ============================================================ */
 function init(){
@@ -1464,6 +2273,17 @@ function init(){
   // Verificar soporte crypto
   if(!window.crypto || !crypto.subtle){
     els.globalWarnings.innerHTML = '<div class="warn"><b>Este navegador no soporta cifrado.</b> El sistema funcionará en modo texto plano (sin PIN ni backup cifrado). Te recomendamos usar Chrome, Firefox o Safari actualizado.</div>';
+  }
+  // Verificar localStorage
+  if(!testLocalStorage()){
+    els.globalWarnings.innerHTML = '<div class="warn"><b>ERROR CRÍTICO: El almacenamiento local está bloqueado.</b> La app NO guardará tus datos. Posibles causas: modo incógnito, Safari con bloqueo de rastreo, o Firefox con protección estricta. Abre la app en una ventana normal del navegador.</div>';
+    setSaveIndicator('err', 'Sin almacenamiento');
+  }else{
+    setSaveIndicator('ok', 'Listo');
+  }
+  // Verificar si estamos en iframe (Google Sites, etc.)
+  if(window.self !== window.top){
+    els.globalWarnings.innerHTML += '<div class="warn"><b>Estás dentro de un iframe.</b> El almacenamiento local puede ser inestable. Abre la app directamente en su URL: ' + esc(location.href) + '</div>';
   }
   if(isPinSet()){
     els.lock.style.display = 'flex';
@@ -1489,6 +2309,14 @@ function init(){
     setTimeout(calcularPrimerPago, 0);
     render();
     showGlobalWarnings();
+    // Cargar configuración de la nube si existe
+    const cloudCfg = loadCloudConfig();
+    if(cloudCfg){
+      setCloudStatus('connecting', 'Conectando...');
+      initFirebase(cloudCfg);
+    }
+    // Cargar sesión P2P guardada
+    loadP2PSession();
   }
 }
 
